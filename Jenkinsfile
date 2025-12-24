@@ -107,18 +107,31 @@ pipeline {
                         // 1. Run the apply separately first
                         sh "terraform apply -auto-approve -var-file=${env.BRANCH_NAME}.tfvars"
                         
-                        // 2. Capture outputs individually - use -raw to get just the string without quotes
-                        env.INSTANCE_IP = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
-                        env.INSTANCE_ID = sh(script: "terraform output -raw ec2_instance_id", returnStdout: true).trim()
+                        echo "Infrastructure deployed successfully!"
                         
-                        // 3. Verify immediately
-                        if (env.INSTANCE_IP == "null" || env.INSTANCE_IP == "" || env.INSTANCE_ID == "null" || env.INSTANCE_ID == "") {
-                            error "Capture failed! IP: ${env.INSTANCE_IP}, ID: ${env.INSTANCE_ID}. Check if your Terraform outputs.tf names match."
+                        // 2. Capture outputs individually using separate variable assignment
+                        def instanceIp = sh(
+                            script: 'terraform output -raw ec2_public_ip',
+                            returnStdout: true
+                        ).trim()
+                        
+                        def instanceId = sh(
+                            script: 'terraform output -raw ec2_instance_id',
+                            returnStdout: true
+                        ).trim()
+                        
+                        // 3. Assign to env variables
+                        env.INSTANCE_IP = instanceIp
+                        env.INSTANCE_ID = instanceId
+                        
+                        // 4. Verify immediately
+                        if (!env.INSTANCE_IP || env.INSTANCE_IP == 'null' || env.INSTANCE_IP == '' || 
+                            !env.INSTANCE_ID || env.INSTANCE_ID == 'null' || env.INSTANCE_ID == '') {
+                            error "Capture failed! IP: ${env.INSTANCE_IP}, ID: ${env.INSTANCE_ID}. Check terraform outputs."
                         }
                         
-                        echo "Infrastructure deployed successfully!"
-                        echo "Instance Public IP: ${env.INSTANCE_IP}"
-                        echo "Instance ID: ${env.INSTANCE_ID}"
+                        echo "✓ Instance Public IP: ${env.INSTANCE_IP}"
+                        echo "✓ Instance ID: ${env.INSTANCE_ID}"
                     }
                 }
             }
