@@ -111,38 +111,35 @@ pipeline {
         }
         
         // BYOD-3 Task 1b: Capture Terraform Outputs
-        stage('Capture Terraform Outputs') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                script {
-                    echo "Capturing Terraform outputs..."
-                    
-                    // Use returnStdout directly (now that Pipeline Utility Steps plugin is installed)
-                    env.INSTANCE_IP = sh(
-                        script: 'terraform output -raw ec2_public_ip',
-                        returnStdout: true
-                    ).trim()
-                    
-                    env.INSTANCE_ID = sh(
-                        script: 'terraform output -raw ec2_instance_id',
-                        returnStdout: true
-                    ).trim()
-                    
-                    echo "✓ Captured Instance IP: ${env.INSTANCE_IP}"
-                    echo "✓ Captured Instance ID: ${env.INSTANCE_ID}"
-                    
-                    // Verify
-                    if (!env.INSTANCE_IP || env.INSTANCE_IP == 'null' || env.INSTANCE_IP == '') {
-                        error "Failed to capture Instance IP"
-                    }
-                    if (!env.INSTANCE_ID || env.INSTANCE_ID == 'null' || env.INSTANCE_ID == '') {
-                        error "Failed to capture Instance ID"
-                    }
-                }
+       stage('Capture Terraform Outputs') {
+    when { branch 'dev' }
+    steps {
+        script {
+            echo "Capturing Terraform outputs..."
+
+            def ip = sh(
+                script: 'terraform output -raw ec2_public_ip',
+                returnStdout: true
+            ).trim()
+
+            def id = sh(
+                script: 'terraform output -raw ec2_instance_id',
+                returnStdout: true
+            ).trim()
+
+            // Assign to ENV explicitly
+            env.INSTANCE_IP = ip
+            env.INSTANCE_ID = id
+
+            echo "✓ Captured Instance IP: ${env.INSTANCE_IP}"
+            echo "✓ Captured Instance ID: ${env.INSTANCE_ID}"
+
+            if (!env.INSTANCE_IP || !env.INSTANCE_ID) {
+                error "Terraform outputs not captured"
             }
         }
+    }
+}
         
         // BYOD-3 Task 2: Dynamic Inventory Management (20 Marks)
         stage('Create Dynamic Inventory') {
