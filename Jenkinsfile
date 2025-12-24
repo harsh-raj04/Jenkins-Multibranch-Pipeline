@@ -140,20 +140,6 @@ pipeline {
                 }
             }
         }
-                    
-                    echo "✓ Captured Instance IP: ${env.INSTANCE_IP}"
-                    echo "✓ Captured Instance ID: ${env.INSTANCE_ID}"
-                    
-                    // Verify
-                    if (!env.INSTANCE_IP || env.INSTANCE_IP == 'null' || env.INSTANCE_IP == '') {
-                        error "Failed to capture Instance IP"
-                    }
-                    if (!env.INSTANCE_ID || env.INSTANCE_ID == 'null' || env.INSTANCE_ID == '') {
-                        error "Failed to capture Instance ID"
-                    }
-                }
-            }
-        }
         
         // BYOD-3 Task 2: Dynamic Inventory Management (20 Marks)
         stage('Create Dynamic Inventory') {
