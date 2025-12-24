@@ -1,0 +1,50 @@
+---
+- name: Test Splunk Installation
+  hosts: splunk_servers
+  become: yes
+  vars:
+    splunk_home: "/opt/splunk"
+  
+  tasks:
+    - name: Check if Splunk process is running
+      command: pgrep -f splunkd
+      register: splunk_process
+      failed_when: splunk_process.rc != 0
+      changed_when: false
+    
+    - name: Verify Splunk service status
+      become_user: splunk
+      command: "{{ splunk_home }}/bin/splunk status"
+      register: splunk_status
+      failed_when: "'splunkd is running' not in splunk_status.stdout"
+      changed_when: false
+    
+    - name: Check Splunk web port (8000) is listening
+      wait_for:
+        port: 8000
+        timeout: 10
+        state: started
+    
+    - name: Check Splunk management port (8089) is listening
+      wait_for:
+        port: 8089
+        timeout: 10
+        state: started
+    
+    - name: Test Splunk web interface accessibility
+      uri:
+        url: "http://localhost:8000"
+        status_code: 200
+        timeout: 30
+      register: web_test
+    
+    - name: Display test results
+      debug:
+        msg:
+          - "✅ Splunk process is running (PID: {{ splunk_process.stdout }})"
+          - "✅ Splunk service status: {{ splunk_status.stdout_lines[0] }}"
+          - "✅ Web interface (port 8000) is accessible"
+          - "✅ Management interface (port 8089) is accessible"
+          - "✅ HTTP response: {{ web_test.status }}"
+          - ""
+          - "Splunk is fully operational and ready to use!"

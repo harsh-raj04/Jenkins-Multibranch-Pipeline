@@ -38,4 +38,10 @@ Thumbs.db
 id_rsa
 id_rsa.pub
 *.ppk
+
+# Ansible
+dynamic_inventory.ini
+*.retry
+
+# Project files
 setup.md
