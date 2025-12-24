@@ -136,7 +136,7 @@ pipeline {
                     sh """#!/bin/bash
                         cat > dynamic_inventory.ini << EOF
 [splunk_servers]
-${env.INSTANCE_IP} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_rsa ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+${env.INSTANCE_IP} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 EOF
                     """
                     
@@ -172,20 +172,17 @@ EOF
                 branch 'dev'
             }
             steps {
-                script {
-                    echo "Installing Splunk using Ansible..."
-                    
-                    // Run Splunk installation playbook
-                    ansiblePlaybook(
-                        playbook: 'playbooks/splunk.yml',
-                        inventory: 'dynamic_inventory.ini',
-                        credentialsId: env.SSH_CRED_ID,
-                        colorized: true,
-                        disableHostKeyChecking: true,
-                        installation: 'ansible'
-                    )
-                    
-                    echo "Splunk installation completed!"
+                sshagent(credentials: [env.SSH_CRED_ID]) {
+                    script {
+                        echo "Installing Splunk using Ansible..."
+                        sh """
+                            export ANSIBLE_HOST_KEY_CHECKING=False
+                            ansible-playbook playbooks/splunk.yml \
+                                -i dynamic_inventory.ini \
+                                --ssh-common-args='-o StrictHostKeyChecking=no'
+                        """
+                        echo "Splunk installation completed!"
+                    }
                 }
             }
         }
@@ -195,22 +192,19 @@ EOF
                 branch 'dev'
             }
             steps {
-                script {
-                    echo "Testing Splunk installation..."
-                    
-                    // Run Splunk test playbook
-                    ansiblePlaybook(
-                        playbook: 'playbooks/test-splunk.yml',
-                        inventory: 'dynamic_inventory.ini',
-                        credentialsId: env.SSH_CRED_ID,
-                        colorized: true,
-                        disableHostKeyChecking: true,
-                        installation: 'ansible'
-                    )
-                    
-                    echo "✅ Splunk service is active and reachable!"
-                    echo "🌐 Access Splunk at: http://${env.INSTANCE_IP}:8000"
-                    echo "👤 Username: admin | Password: SplunkAdmin123!"
+                sshagent(credentials: [env.SSH_CRED_ID]) {
+                    script {
+                        echo "Testing Splunk installation..."
+                        sh """
+                            export ANSIBLE_HOST_KEY_CHECKING=False
+                            ansible-playbook playbooks/test-splunk.yml \
+                                -i dynamic_inventory.ini \
+                                --ssh-common-args='-o StrictHostKeyChecking=no'
+                        """
+                        echo "✅ Splunk service is active and reachable!"
+                        echo "🌐 Access Splunk at: http://${env.INSTANCE_IP}:8000"
+                        echo "👤 Username: admin | Password: SplunkAdmin123!"
+                    }
                 }
             }
         }
