@@ -10,358 +10,325 @@ pipeline {
 
     stages {
 
-        // =====================================================
-        // STAGE 1: CHECKOUT
-        // =====================================================
-        stage('📥 Checkout') {
+        stage('Checkout') {
             steps {
                 checkout scm
                 echo "Checked out branch: ${env.BRANCH_NAME}"
             }
         }
 
-        // =====================================================
-        // STAGE 2: TERRAFORM INIT
-        // =====================================================
-        stage('🔧 Terraform Init') {
+        stage('Terraform Init') {
             when {
                 branch 'dev'
             }
             steps {
-                                withCredentials([
-                                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                                ]) {
-                                        sh """
-                                            /bin/bash -lc '
-                                                PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-                                                export PATH AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-                                                terraform init
-                                                echo "==== Contents of ${BRANCH_NAME}.tfvars ===="
-                                                cat ${BRANCH_NAME}.tfvars
-                                                echo "=============================================="
-                                            '
-                                        """
-                                }
+                script {
+                    withCredentials([
+                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        sh '''#!/bin/bash
+                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+                            export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+                            
+                            echo "Initializing Terraform..."
+                            terraform init
+                            
+                            echo "==== Dev environment configuration ===="
+                            cat dev.tfvars
+                            echo "======================================="
+                        '''
+                    }
+                }
             }
         }
 
-        // =====================================================
-        // STAGE 3: TERRAFORM PLAN
-        // =====================================================
-        stage('📋 Terraform Plan') {
+        stage('Terraform Plan') {
             when {
                 branch 'dev'
             }
             steps {
-                                withCredentials([
-                                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                                ]) {
-                                        sh """
-                                            /bin/bash -lc '
-                                                PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-                                                export PATH AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-                                                terraform plan \
-                                                    -var-file=${BRANCH_NAME}.tfvars \
-                                                    -out=${BRANCH_NAME}.tfplan
-                                            '
-                                        """
-                                }
+                script {
+                    withCredentials([
+                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        sh '''#!/bin/bash
+                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+                            export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+                            
+                            echo "Generating Terraform plan..."
+                            terraform plan -var-file=dev.tfvars -out=dev.tfplan
+                        '''
+                    }
+                }
             }
         }
 
-        // =====================================================
-        // STAGE 4: VALIDATE APPLY
-        // =====================================================
-        stage('✅ Validate Apply') {
+        stage('Approve Deploy') {
             when {
                 branch 'dev'
             }
             steps {
-                input message: 'Apply Terraform plan to DEV environment?',
-                      ok: 'Yes, Deploy Infrastructure'
+                input message: 'Apply Terraform plan to DEV environment?', ok: 'Deploy'
             }
         }
 
-        // =====================================================
-        // STAGE 5: TERRAFORM APPLY
-        // =====================================================
-        stage('🚀 Terraform Apply') {
+        stage('Terraform Apply') {
             when {
                 branch 'dev'
             }
             steps {
-                                withCredentials([
-                                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                                ]) {
-                                        sh """
-                                            /bin/bash -lc '
-                                                PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-                                                export PATH AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-                                                terraform apply -auto-approve ${BRANCH_NAME}.tfplan
-                                                echo "Infrastructure deployed successfully!"
-                                            '
-                                        """
-                                }
+                script {
+                    withCredentials([
+                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        sh '''#!/bin/bash
+                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+                            export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+                            
+                            echo "Applying Terraform plan..."
+                            terraform apply -auto-approve dev.tfplan
+                            echo "✓ Infrastructure deployed!"
+                        '''
+                    }
+                }
             }
         }
 
-        // =====================================================
-        // STAGE 6: CAPTURE OUTPUTS
-        // =====================================================
-        stage('📤 Capture Terraform Outputs') {
+        stage('Capture Outputs') {
             when {
                 branch 'dev'
             }
             steps {
                 script {
                     env.INSTANCE_ID = sh(
-                        script: "/bin/bash -lc 'PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin; export PATH; terraform output -raw ec2_instance_id'",
+                        script: '''#!/bin/bash
+                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            terraform output -raw ec2_instance_id
+                        ''',
                         returnStdout: true
                     ).trim()
 
                     env.INSTANCE_IP = sh(
-                        script: "/bin/bash -lc 'PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin; export PATH; terraform output -raw ec2_public_ip'",
+                        script: '''#!/bin/bash
+                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            terraform output -raw ec2_public_ip
+                        ''',
                         returnStdout: true
                     ).trim()
 
-                    echo "✓ Captured Instance ID: ${env.INSTANCE_ID}"
-                    echo "✓ Captured Instance IP: ${env.INSTANCE_IP}"
-                    
+                    echo "Instance ID: ${env.INSTANCE_ID}"
+                    echo "Instance IP: ${env.INSTANCE_IP}"
+
                     if (!env.INSTANCE_IP || !env.INSTANCE_ID) {
-                        error "Failed to capture Terraform outputs"
+                        error "Failed to capture outputs"
                     }
                 }
             }
         }
 
-        // =====================================================
-        // STAGE 7: DYNAMIC INVENTORY
-        // =====================================================
-        stage('📄 Create Dynamic Inventory') {
+        stage('Create Inventory') {
             when {
                 branch 'dev'
             }
-                        steps {
-                                sh """
-                                    /bin/bash -lc '
-                                        PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-                                        export PATH
-                                        cat <<EOF > dynamic_inventory.ini
+            steps {
+                sh '''#!/bin/bash
+                    export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                    
+                    cat > dynamic_inventory.ini <<EOF
 [splunk_servers]
 ${INSTANCE_IP} ansible_user=ubuntu ansible_ssh_private_key_file=${HOME}/.ssh/devops.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 EOF
-                                        echo "==== Dynamic Inventory ===="
-                                        cat dynamic_inventory.ini
-                                        echo "==========================="
-                                    '
-                                """
-                        }
+                    
+                    echo "==== Ansible Inventory ===="
+                    cat dynamic_inventory.ini
+                    echo "==========================="
+                '''
+            }
         }
 
-        // =====================================================
-        // STAGE 8: AWS HEALTH CHECK
-        // =====================================================
-        stage('🩺 Wait for Instance Ready') {
+        stage('Wait for Instance') {
             when {
                 branch 'dev'
             }
             steps {
-                                withCredentials([
-                                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                                ]) {
-                                        sh """
-                                            /bin/bash -lc '
-                                                PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-                                                export PATH AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-                                                echo "Waiting for instance to be ready..."
-                                                aws ec2 wait instance-status-ok \
-                                                    --instance-ids ${INSTANCE_ID} \
-                                                    --region ${AWS_REGION}
-                                                echo "✓ Instance is ready!"
-                                            '
-                                        """
-                                }
-            }
-        }
-
-        // =====================================================
-        // STAGE 9: SPLUNK INSTALL
-        // =====================================================
-        stage('📦 Install Splunk') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                withCredentials([
-                    sshUserPrivateKey(
-                        credentialsId: 'ssh-private-key',
-                        keyFileVariable: 'SSH_KEY',
-                        usernameVariable: 'SSH_USER'
-                    )
-                ]) {
-                    sh """
-                      /bin/bash -lc '
-                        PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-                        export PATH
-                        chmod 600 $SSH_KEY
-                        ansible-playbook \
-                          -i dynamic_inventory.ini \
-                          --private-key $SSH_KEY \
-                          playbooks/splunk.yml
-                      '
-                    """
+                script {
+                    withCredentials([
+                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        sh '''#!/bin/bash
+                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+                            export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+                            
+                            echo "Waiting for instance to be ready..."
+                            aws ec2 wait instance-status-ok --instance-ids ${INSTANCE_ID} --region ${AWS_REGION}
+                            echo "✓ Instance is ready!"
+                        '''
+                    }
                 }
             }
         }
 
-        // =====================================================
-        // STAGE 10: SPLUNK VERIFICATION
-        // =====================================================
-        stage('✅ Test Splunk') {
+        stage('Install Splunk') {
             when {
                 branch 'dev'
             }
             steps {
-                withCredentials([
-                    sshUserPrivateKey(
-                        credentialsId: 'ssh-private-key',
-                        keyFileVariable: 'SSH_KEY',
-                        usernameVariable: 'SSH_USER'
-                    )
-                ]) {
-                    sh """
-                      /bin/bash -lc '
-                        PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-                        export PATH
-                        chmod 600 $SSH_KEY
-                        ansible-playbook \
-                          -i dynamic_inventory.ini \
-                          --private-key $SSH_KEY \
-                          playbooks/test-splunk.yml
-                      '
-                    """
+                script {
+                    withCredentials([
+                        sshUserPrivateKey(
+                            credentialsId: 'ssh-private-key',
+                            keyFileVariable: 'SSH_KEY',
+                            usernameVariable: 'SSH_USER'
+                        )
+                    ]) {
+                        sh '''#!/bin/bash
+                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            
+                            chmod 600 ${SSH_KEY}
+                            ansible-playbook \
+                                -i dynamic_inventory.ini \
+                                --private-key ${SSH_KEY} \
+                                playbooks/splunk.yml
+                        '''
+                    }
                 }
             }
         }
 
-        // =====================================================
-        // STAGE 11: SHOW OUTPUTS
-        // =====================================================
-        stage('📊 Show Outputs') {
-            when {
-                branch 'dev'
-            }
-                        steps {
-                                sh """
-                                    /bin/bash -lc '
-                                        PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-                                        export PATH
-                                        echo "=========================================="
-                                        echo "      DEPLOYMENT SUCCESSFUL!"
-                                        echo "=========================================="
-                                        terraform output
-                                        echo ""
-                                        echo "🌐 Splunk Web UI: http://${INSTANCE_IP}:8000"
-                                        echo "   Username: admin"
-                                        echo "   Password: SplunkAdmin123!"
-                                        echo ""
-                                        echo "🔌 Management Port: ${INSTANCE_IP}:8089"
-                                        echo "=========================================="
-                                    '
-                                """
-                        }
-        }
-
-        // =====================================================
-        // STAGE 12: VALIDATE DESTROY
-        // =====================================================
-        stage('🛑 Validate Destroy') {
+        stage('Test Splunk') {
             when {
                 branch 'dev'
             }
             steps {
-                input message: 'Do you want to destroy the infrastructure?',
-                      ok: 'Yes, Destroy Everything'
+                script {
+                    withCredentials([
+                        sshUserPrivateKey(
+                            credentialsId: 'ssh-private-key',
+                            keyFileVariable: 'SSH_KEY',
+                            usernameVariable: 'SSH_USER'
+                        )
+                    ]) {
+                        sh '''#!/bin/bash
+                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            
+                            chmod 600 ${SSH_KEY}
+                            ansible-playbook \
+                                -i dynamic_inventory.ini \
+                                --private-key ${SSH_KEY} \
+                                playbooks/test-splunk.yml
+                        '''
+                    }
+                }
             }
         }
 
-        // =====================================================
-        // STAGE 13: TERRAFORM DESTROY
-        // =====================================================
-        stage('🔥 Terraform Destroy') {
+        stage('Show Results') {
             when {
                 branch 'dev'
             }
             steps {
-                                withCredentials([
-                                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                                ]) {
-                                        sh """
-                                            /bin/bash -lc '
-                                                PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-                                                export PATH AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-                                                terraform destroy \
-                                                    -auto-approve \
-                                                    -var-file=${BRANCH_NAME}.tfvars
-                                                echo "✓ Infrastructure destroyed successfully"
-                                            '
-                                        """
-                                }
+                sh '''#!/bin/bash
+                    export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                    
+                    echo "=========================================="
+                    echo "       DEPLOYMENT SUCCESSFUL!"
+                    echo "=========================================="
+                    terraform output
+                    echo ""
+                    echo "Splunk Web: http://${INSTANCE_IP}:8000"
+                    echo "  Username: admin"
+                    echo "  Password: SplunkAdmin123!"
+                    echo ""
+                    echo "Management: ${INSTANCE_IP}:8089"
+                    echo "=========================================="
+                '''
+            }
+        }
+
+        stage('Approve Destroy') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                input message: 'Destroy infrastructure?', ok: 'Yes, Destroy'
+            }
+        }
+
+        stage('Terraform Destroy') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                script {
+                    withCredentials([
+                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        sh '''#!/bin/bash
+                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+                            export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+                            
+                            terraform destroy -auto-approve -var-file=dev.tfvars
+                            echo "✓ Infrastructure destroyed"
+                        '''
+                    }
+                }
             }
         }
     }
 
-    // =====================================================
-    // POST ACTIONS
-    // =====================================================
     post {
         always {
-            script {
-                echo "🧹 Cleaning up temporary files..."
-                sh "/bin/bash -lc 'rm -f dynamic_inventory.ini *.tfplan || true'"
-            }
+            sh '''#!/bin/bash
+                export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                rm -f dynamic_inventory.ini dev.tfplan || true
+            '''
         }
 
         failure {
             script {
-                echo "❌ Pipeline failed — attempting to destroy infrastructure..."
-                                withCredentials([
-                                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                                ]) {
-                                        sh """
-                                            /bin/bash -lc '
-                                                PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-                                                export PATH AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-                                                terraform init -reconfigure || true
-                                                terraform destroy -auto-approve -var-file=${BRANCH_NAME}.tfvars || true
-                                            '
-                                        """
-                                }
+                echo "Pipeline failed - destroying infrastructure..."
+                withCredentials([
+                    string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    sh '''#!/bin/bash
+                        export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                        export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+                        export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+                        
+                        terraform init -reconfigure || true
+                        terraform destroy -auto-approve -var-file=dev.tfvars || true
+                    '''
+                }
             }
         }
 
         aborted {
             script {
-                echo "⚠️ Pipeline aborted — attempting to destroy infrastructure..."
-                                withCredentials([
-                                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                                ]) {
-                                        sh """
-                                            /bin/bash -lc '
-                                                PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-                                                export PATH AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-                                                terraform init -reconfigure || true
-                                                terraform destroy -auto-approve -var-file=${BRANCH_NAME}.tfvars || true
-                                            '
-                                        """
-                                }
+                echo "Pipeline aborted - destroying infrastructure..."
+                withCredentials([
+                    string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    sh '''#!/bin/bash
+                        export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                        export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+                        export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+                        
+                        terraform init -reconfigure || true
+                        terraform destroy -auto-approve -var-file=dev.tfvars || true
+                    '''
+                }
             }
         }
 
