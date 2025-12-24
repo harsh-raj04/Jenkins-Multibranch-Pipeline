@@ -94,8 +94,8 @@ pipeline {
             }
         }
         
-        // BYOD-3 Task 1: Provisioning & Output Capture (20 Marks)
-        stage('Terraform Apply & Capture Outputs') {
+        // BYOD-3 Task 1a: Terraform Apply
+        stage('Terraform Apply') {
             when {
                 branch 'dev'
             }
@@ -103,32 +103,42 @@ pipeline {
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                     script {
                         echo "Applying Terraform plan for ${env.BRANCH_NAME} environment"
-                        
-                        // Run terraform apply
                         sh "terraform apply -auto-approve -var-file=${env.BRANCH_NAME}.tfvars"
-                        
                         echo "Infrastructure deployed successfully!"
-                        
-                        // Write outputs to files to avoid CPS serialization issues
-                        sh '''
-                            terraform output -raw ec2_public_ip > instance_ip.txt
-                            terraform output -raw ec2_instance_id > instance_id.txt
-                        '''
-                        
-                        // Read from files into env variables
-                        env.INSTANCE_IP = readFile('instance_ip.txt').trim()
-                        env.INSTANCE_ID = readFile('instance_id.txt').trim()
-                        
-                        // Verify
-                        if (!env.INSTANCE_IP || env.INSTANCE_IP == 'null' || env.INSTANCE_IP == '') {
-                            error "Failed to capture IP: ${env.INSTANCE_IP}"
-                        }
-                        if (!env.INSTANCE_ID || env.INSTANCE_ID == 'null' || env.INSTANCE_ID == '') {
-                            error "Failed to capture ID: ${env.INSTANCE_ID}"
-                        }
-                        
-                        echo "✓ Captured Instance IP: ${env.INSTANCE_IP}"
-                        echo "✓ Captured Instance ID: ${env.INSTANCE_ID}"
+                    }
+                }
+            }
+        }
+        
+        // BYOD-3 Task 1b: Capture Terraform Outputs
+        stage('Capture Terraform Outputs') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                script {
+                    echo "Capturing Terraform outputs..."
+                    
+                    // Capture using returnStdout in a clean scope
+                    env.INSTANCE_IP = sh(
+                        script: 'terraform output -raw ec2_public_ip',
+                        returnStdout: true
+                    ).trim()
+                    
+                    env.INSTANCE_ID = sh(
+                        script: 'terraform output -raw ec2_instance_id',
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "✓ Captured Instance IP: ${env.INSTANCE_IP}"
+                    echo "✓ Captured Instance ID: ${env.INSTANCE_ID}"
+                    
+                    // Verify
+                    if (!env.INSTANCE_IP || env.INSTANCE_IP == 'null' || env.INSTANCE_IP == '') {
+                        error "Failed to capture Instance IP"
+                    }
+                    if (!env.INSTANCE_ID || env.INSTANCE_ID == 'null' || env.INSTANCE_ID == '') {
+                        error "Failed to capture Instance ID"
                     }
                 }
             }
