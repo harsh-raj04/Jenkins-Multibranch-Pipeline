@@ -111,15 +111,23 @@ pipeline {
                         
                         // Capture Terraform outputs into environment variables
                         echo "Capturing Terraform outputs..."
-                        env.INSTANCE_IP = sh(
-                            script: '/bin/bash -c "terraform output -raw ec2_public_ip"',
+                        
+                        def instanceIp = sh(
+                            script: '/bin/bash -c "terraform output -raw ec2_public_ip 2>/dev/null || echo \'ERROR\'"',
                             returnStdout: true
                         ).trim()
                         
-                        env.INSTANCE_ID = sh(
-                            script: '/bin/bash -c "terraform output -raw ec2_instance_id"',
+                        def instanceId = sh(
+                            script: '/bin/bash -c "terraform output -raw ec2_instance_id 2>/dev/null || echo \'ERROR\'"',
                             returnStdout: true
                         ).trim()
+                        
+                        if (instanceIp == 'ERROR' || instanceId == 'ERROR') {
+                            error "Failed to capture Terraform outputs"
+                        }
+                        
+                        env.INSTANCE_IP = instanceIp
+                        env.INSTANCE_ID = instanceId
                         
                         echo "Instance Public IP: ${env.INSTANCE_IP}"
                         echo "Instance ID: ${env.INSTANCE_ID}"
@@ -286,16 +294,18 @@ EOF
         failure {
             echo "Pipeline failed for branch: ${env.BRANCH_NAME}"
             script {
-                // Auto-destroy on failure
-                if (env.BRANCH_NAME == 'dev' && env.INSTANCE_ID) {
+                // Auto-destroy on failure for dev branch
+                if (env.BRANCH_NAME == 'dev') {
                     echo "Attempting to destroy infrastructure due to pipeline failure..."
                     try {
                         withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                             sh """#!/bin/bash
+                                cd ${WORKSPACE}
                                 terraform destroy \
                                     -auto-approve \
                                     -var-file=${env.BRANCH_NAME}.tfvars || true
                             """
+                            echo "Auto-destroy completed"
                         }
                     } catch (Exception e) {
                         echo "Auto-destroy failed: ${e.message}"
@@ -306,16 +316,18 @@ EOF
         aborted {
             echo "Pipeline was aborted for branch: ${env.BRANCH_NAME}"
             script {
-                // Auto-destroy on abort
-                if (env.BRANCH_NAME == 'dev' && env.INSTANCE_ID) {
+                // Auto-destroy on abort for dev branch
+                if (env.BRANCH_NAME == 'dev') {
                     echo "Attempting to destroy infrastructure due to pipeline abort..."
                     try {
                         withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                             sh """#!/bin/bash
+                                cd ${WORKSPACE}
                                 terraform destroy \
                                     -auto-approve \
                                     -var-file=${env.BRANCH_NAME}.tfvars || true
                             """
+                            echo "Auto-destroy completed"
                         }
                     } catch (Exception e) {
                         echo "Auto-destroy failed: ${e.message}"
