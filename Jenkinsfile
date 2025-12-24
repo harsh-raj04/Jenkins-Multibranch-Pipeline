@@ -26,19 +26,17 @@ pipeline {
                 branch 'dev'
             }
             steps {
-                script {
-                    withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                        sh '''#!/bin/bash
-                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                            
-                            echo "Initializing Terraform..."
-                            terraform init
-                            
-                            echo "==== Dev environment configuration ===="
-                            cat dev.tfvars
-                            echo "======================================="
-                        '''
-                    }
+                withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
+                    sh '''
+                        export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                        
+                        echo "Initializing Terraform..."
+                        terraform init
+                        
+                        echo "==== Dev environment configuration ===="
+                        cat dev.tfvars
+                        echo "======================================="
+                    '''
                 }
             }
         }
@@ -50,7 +48,7 @@ pipeline {
             steps {
                 script {
                     withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                        sh '''#!/bin/bash
+                        sh '''
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                             
                             echo "Generating Terraform plan..."
@@ -77,7 +75,7 @@ pipeline {
             steps {
                 script {
                     withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                        sh '''#!/bin/bash
+                        sh '''
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                             
                             echo "Applying Terraform plan..."
@@ -96,7 +94,7 @@ pipeline {
             steps {
                 script {
                     env.INSTANCE_ID = sh(
-                        script: '''#!/bin/bash
+                        script: '''
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                             terraform output -raw ec2_instance_id
                         ''',
@@ -104,7 +102,7 @@ pipeline {
                     ).trim()
 
                     env.INSTANCE_IP = sh(
-                        script: '''#!/bin/bash
+                        script: '''
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                             terraform output -raw ec2_public_ip
                         ''',
@@ -126,7 +124,7 @@ pipeline {
                 branch 'dev'
             }
             steps {
-                sh '''#!/bin/bash
+                sh '''
                     export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                     
                     cat > dynamic_inventory.ini <<EOF
@@ -148,7 +146,7 @@ EOF
             steps {
                 script {
                     withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                        sh '''#!/bin/bash
+                        sh '''
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                             
                             echo "Waiting for instance to be ready..."
@@ -173,7 +171,7 @@ EOF
                             usernameVariable: 'SSH_USER'
                         )
                     ]) {
-                        sh '''#!/bin/bash
+                        sh '''
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                             
                             chmod 600 ${SSH_KEY}
@@ -200,7 +198,7 @@ EOF
                             usernameVariable: 'SSH_USER'
                         )
                     ]) {
-                        sh '''#!/bin/bash
+                        sh '''
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                             
                             chmod 600 ${SSH_KEY}
@@ -219,7 +217,7 @@ EOF
                 branch 'dev'
             }
             steps {
-                sh '''#!/bin/bash
+                sh '''
                     export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                     
                     echo "=========================================="
@@ -253,7 +251,7 @@ EOF
             steps {
                 script {
                     withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                        sh '''#!/bin/bash
+                        sh '''
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                             
                             terraform destroy -auto-approve -var-file=dev.tfvars
@@ -267,7 +265,7 @@ EOF
 
     post {
         always {
-            sh '''#!/bin/bash
+            sh '''
                 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                 rm -f dynamic_inventory.ini dev.tfplan || true
             '''
@@ -277,7 +275,7 @@ EOF
             script {
                 echo "Pipeline failed - destroying infrastructure..."
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                    sh '''#!/bin/bash
+                    sh '''
                         export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                         
                         terraform init -reconfigure || true
@@ -291,7 +289,7 @@ EOF
             script {
                 echo "Pipeline aborted - destroying infrastructure..."
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                    sh '''#!/bin/bash
+                    sh '''
                         export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                         
                         terraform init -reconfigure || true
