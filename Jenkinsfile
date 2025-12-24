@@ -90,7 +90,7 @@ pipeline {
             }
         }
         
-        // Terraform Apply (executes after approval)
+        // BYOD-3 Task 1: Provisioning & Output Capture (20 Marks)
         stage('Terraform Apply') {
             when {
                 branch 'dev'
@@ -98,28 +98,169 @@ pipeline {
             steps {
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                     script {
-                        echo "Applying Terraform plan for ${env.BRANCH_NAME} environment"
+                        echo "Applying Terraform with auto-approve for ${env.BRANCH_NAME} environment"
                         sh """#!/bin/bash
                             terraform apply \
                                 -auto-approve \
-                                ${env.BRANCH_NAME}.tfplan
+                                -var-file=${env.BRANCH_NAME}.tfvars
                         """
+                        
+                        // Capture instance_public_ip and instance_id from Terraform outputs
+                        echo "Capturing Terraform outputs..."
+                        env.INSTANCE_IP = sh(
+                            script: 'terraform output -raw ec2_public_ip',
+                            returnStdout: true
+                        ).trim()
+                        
+                        env.INSTANCE_ID = sh(
+                            script: 'terraform output -raw ec2_instance_id',
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "Captured INSTANCE_IP: ${env.INSTANCE_IP}"
+                        echo "Captured INSTANCE_ID: ${env.INSTANCE_ID}"
                         echo "Infrastructure deployed successfully!"
                     }
                 }
             }
         }
         
-        // Display Outputs
-        stage('Show Outputs') {
+        // BYOD-3 Task 2: Dynamic Inventory Management (20 Marks)
+        stage('Create Dynamic Inventory') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                script {
+                    echo "Creating dynamic_inventory.ini file..."
+                    sh """#!/bin/bash
+                        cat > dynamic_inventory.ini << EOF
+[splunk_servers]
+${env.INSTANCE_IP} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_rsa ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+EOF
+                    """
+                    
+                    echo "Dynamic inventory file created successfully!"
+                    sh 'cat dynamic_inventory.ini'
+                }
+            }
+        }
+        
+        // BYOD-3 Task 3: AWS Health Status Verification (20 Marks)
+        stage('AWS Health Check') {
             when {
                 branch 'dev'
             }
             steps {
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                     script {
-                        echo "Displaying Terraform outputs:"
-                        sh '/bin/bash -c "terraform output"'
+                        echo "Waiting for instance ${env.INSTANCE_ID} to pass health checks..."
+                        sh """#!/bin/bash
+                            aws ec2 wait instance-status-ok \
+                                --instance-ids ${env.INSTANCE_ID} \
+                                --region us-east-1
+                        """
+                        echo "✅ EC2 instance health checks passed successfully!"
+                    }
+                }
+            }
+        }
+        
+        // BYOD-3 Task 4: Splunk Installation & Testing (20 Marks)
+        stage('Configure Splunk') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                script {
+                    echo "Installing Splunk using Ansible..."
+                    
+                    // Run Splunk installation playbook
+                    ansiblePlaybook(
+                        playbook: 'playbooks/splunk.yml',
+                        inventory: 'dynamic_inventory.ini',
+                        credentialsId: env.SSH_CRED_ID,
+                        colorized: true,
+                        disableHostKeyChecking: true
+                    )
+                    
+                    echo "Splunk installation completed!"
+                }
+            }
+        }
+        
+        stage('Test Splunk') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                script {
+                    echo "Testing Splunk installation..."
+                    
+                    // Run Splunk test playbook
+                    ansiblePlaybook(
+                        playbook: 'playbooks/test-splunk.yml',
+                        inventory: 'dynamic_inventory.ini',
+                        credentialsId: env.SSH_CRED_ID,
+                        colorized: true,
+                        disableHostKeyChecking: true
+                    )
+                    
+                    echo "✅ Splunk service is active and reachable!"
+                    echo "🌐 Access Splunk at: http://${env.INSTANCE_IP}:8000"
+                    echo "👤 Username: admin | Password: SplunkAdmin123!"
+                }
+            }
+        }
+        
+        // BYOD-3 Task 5: Infrastructure Destruction & Post-Build Actions (20 Marks)
+        stage('Validate Destroy') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                script {
+                    echo "Requesting approval for infrastructure destruction..."
+                    def destroyInput = input(
+                        id: 'DestroyGate',
+                        message: 'Do you want to destroy the infrastructure?',
+                        parameters: [
+                            choice(
+                                name: 'DESTROY_APPROVAL',
+                                choices: ['Skip', 'Destroy'],
+                                description: 'Select Destroy to tear down the infrastructure'
+                            )
+                        ]
+                    )
+                    
+                    env.DESTROY_APPROVED = (destroyInput == 'Destroy') ? 'true' : 'false'
+                    
+                    if (env.DESTROY_APPROVED == 'true') {
+                        echo "Destruction approved! Proceeding to destroy stage..."
+                    } else {
+                        echo "Destruction skipped by user. Infrastructure will remain active."
+                    }
+                }
+            }
+        }
+        
+        stage('Destroy Infrastructure') {
+            when {
+                allOf {
+                    branch 'dev'
+                    environment name: 'DESTROY_APPROVED', value: 'true'
+                }
+            }
+            steps {
+                withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
+                    script {
+                        echo "Destroying infrastructure for ${env.BRANCH_NAME} environment..."
+                        sh """#!/bin/bash
+                            terraform destroy \
+                                -auto-approve \
+                                -var-file=${env.BRANCH_NAME}.tfvars
+                        """
+                        echo "Infrastructure destroyed successfully!"
                     }
                 }
             }
@@ -128,19 +269,73 @@ pipeline {
     
     post {
         success {
-            echo "Pipeline completed successfully for branch: ${env.BRANCH_NAME}"
+            echo "✅ Pipeline completed successfully for branch: ${env.BRANCH_NAME}"
         }
         failure {
-            echo "Pipeline failed for branch: ${env.BRANCH_NAME}"
+            echo "❌ Pipeline failed for branch: ${env.BRANCH_NAME}"
+            echo "Initiating automatic cleanup..."
+            
+            // Automatic destroy on failure
+            script {
+                try {
+                    if (env.INSTANCE_ID) {
+                        withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
+                            echo "Running terraform destroy due to pipeline failure..."
+                            sh """#!/bin/bash
+                                terraform destroy \
+                                    -auto-approve \
+                                    -var-file=${env.BRANCH_NAME}.tfvars || true
+                            """
+                        }
+                    }
+                } catch (Exception e) {
+                    echo "Cleanup encountered an error: ${e.message}"
+                }
+            }
+        }
+        aborted {
+            echo "⚠️ Pipeline aborted for branch: ${env.BRANCH_NAME}"
+            echo "Initiating automatic cleanup..."
+            
+            // Automatic destroy on abort
+            script {
+                try {
+                    if (env.INSTANCE_ID) {
+                        withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
+                            echo "Running terraform destroy due to pipeline abort..."
+                            sh """#!/bin/bash
+                                terraform destroy \
+                                    -auto-approve \
+                                    -var-file=${env.BRANCH_NAME}.tfvars || true
+                            """
+                        }
+                    }
+                } catch (Exception e) {
+                    echo "Cleanup encountered an error: ${e.message}"
+                }
+            }
         }
         always {
             script {
+                // Delete dynamic_inventory.ini file
+                try {
+                    if (fileExists('dynamic_inventory.ini')) {
+                        echo "Deleting dynamic_inventory.ini..."
+                        sh 'rm -f dynamic_inventory.ini'
+                        echo "✅ Dynamic inventory file deleted"
+                    }
+                } catch (Exception e) {
+                    echo "Failed to delete dynamic_inventory.ini: ${e.message}"
+                }
+                
+                // Clean workspace
                 try {
                     cleanWs(
                         deleteDirs: true,
                         patterns: [
                             [pattern: '*.tfplan', type: 'INCLUDE'],
-                            [pattern: '.terraform/', type: 'INCLUDE']
+                            [pattern: '.terraform/', type: 'INCLUDE'],
+                            [pattern: 'dynamic_inventory.ini', type: 'INCLUDE']
                         ]
                     )
                 } catch (Exception e) {
