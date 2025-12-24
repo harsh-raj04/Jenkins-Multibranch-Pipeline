@@ -90,7 +90,7 @@ pipeline {
             }
         }
         
-        // BYOD-3 Task 1: Provisioning & Output Capture (20 Marks)
+        // BYOD-3 Task 1: Provisioning (20 Marks)
         stage('Terraform Apply') {
             when {
                 branch 'dev'
@@ -104,23 +104,33 @@ pipeline {
                                 -auto-approve \
                                 -var-file=${env.BRANCH_NAME}.tfvars
                         """
-                        
-                        // Capture instance_public_ip and instance_id from Terraform outputs
-                        echo "Capturing Terraform outputs..."
-                        env.INSTANCE_IP = sh(
-                            script: 'terraform output -raw ec2_public_ip',
-                            returnStdout: true
-                        ).trim()
-                        
-                        env.INSTANCE_ID = sh(
-                            script: 'terraform output -raw ec2_instance_id',
-                            returnStdout: true
-                        ).trim()
-                        
-                        echo "Captured INSTANCE_IP: ${env.INSTANCE_IP}"
-                        echo "Captured INSTANCE_ID: ${env.INSTANCE_ID}"
                         echo "Infrastructure deployed successfully!"
                     }
+                }
+            }
+        }
+        
+        // BYOD-3 Task 1: Output Capture (20 Marks)
+        stage('Capture Outputs') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                script {
+                    echo "Capturing instance_public_ip and instance_id from Terraform outputs..."
+                    
+                    env.INSTANCE_IP = sh(
+                        script: 'terraform output -raw ec2_public_ip',
+                        returnStdout: true
+                    ).trim()
+                    
+                    env.INSTANCE_ID = sh(
+                        script: 'terraform output -raw ec2_instance_id',
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "✅ Captured INSTANCE_IP: ${env.INSTANCE_IP}"
+                    echo "✅ Captured INSTANCE_ID: ${env.INSTANCE_ID}"
                 }
             }
         }
@@ -273,21 +283,36 @@ EOF
             echo "❌ Pipeline failed for branch: ${env.BRANCH_NAME}"
             echo "Initiating automatic cleanup..."
             
+            // Delete dynamic_inventory.ini first
+            script {
+                try {
+                    if (fileExists('dynamic_inventory.ini')) {
+                        echo "Deleting dynamic_inventory.ini..."
+                        sh 'rm -f dynamic_inventory.ini'
+                        echo "✅ Dynamic inventory file deleted"
+                    }
+                } catch (Exception e) {
+                    echo "Failed to delete dynamic_inventory.ini: ${e.message}"
+                }
+            }
+            
             // Automatic destroy on failure
             script {
                 try {
-                    if (env.INSTANCE_ID) {
+                    if (env.INSTANCE_ID && env.BRANCH_NAME == 'dev') {
                         withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                            echo "Running terraform destroy due to pipeline failure..."
+                            echo "🔥 Running terraform destroy due to pipeline failure..."
                             sh """#!/bin/bash
                                 terraform destroy \
                                     -auto-approve \
-                                    -var-file=${env.BRANCH_NAME}.tfvars || true
+                                    -var-file=${env.BRANCH_NAME}.tfvars
                             """
+                            echo "✅ Infrastructure destroyed successfully"
                         }
                     }
                 } catch (Exception e) {
-                    echo "Cleanup encountered an error: ${e.message}"
+                    echo "⚠️ Terraform destroy failed: ${e.message}"
+                    echo "Please manually destroy the infrastructure"
                 }
             }
         }
@@ -295,27 +320,42 @@ EOF
             echo "⚠️ Pipeline aborted for branch: ${env.BRANCH_NAME}"
             echo "Initiating automatic cleanup..."
             
+            // Delete dynamic_inventory.ini first
+            script {
+                try {
+                    if (fileExists('dynamic_inventory.ini')) {
+                        echo "Deleting dynamic_inventory.ini..."
+                        sh 'rm -f dynamic_inventory.ini'
+                        echo "✅ Dynamic inventory file deleted"
+                    }
+                } catch (Exception e) {
+                    echo "Failed to delete dynamic_inventory.ini: ${e.message}"
+                }
+            }
+            
             // Automatic destroy on abort
             script {
                 try {
-                    if (env.INSTANCE_ID) {
+                    if (env.INSTANCE_ID && env.BRANCH_NAME == 'dev') {
                         withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                            echo "Running terraform destroy due to pipeline abort..."
+                            echo "🔥 Running terraform destroy due to pipeline abort..."
                             sh """#!/bin/bash
                                 terraform destroy \
                                     -auto-approve \
-                                    -var-file=${env.BRANCH_NAME}.tfvars || true
+                                    -var-file=${env.BRANCH_NAME}.tfvars
                             """
+                            echo "✅ Infrastructure destroyed successfully"
                         }
                     }
                 } catch (Exception e) {
-                    echo "Cleanup encountered an error: ${e.message}"
+                    echo "⚠️ Terraform destroy failed: ${e.message}"
+                    echo "Please manually destroy the infrastructure"
                 }
             }
         }
         always {
             script {
-                // Delete dynamic_inventory.ini file
+                // Delete dynamic_inventory.ini file if still exists
                 try {
                     if (fileExists('dynamic_inventory.ini')) {
                         echo "Deleting dynamic_inventory.ini..."
@@ -326,16 +366,16 @@ EOF
                     echo "Failed to delete dynamic_inventory.ini: ${e.message}"
                 }
                 
-                // Clean workspace
+                // Clean workspace AFTER destroy operations
                 try {
                     cleanWs(
                         deleteDirs: true,
                         patterns: [
                             [pattern: '*.tfplan', type: 'INCLUDE'],
-                            [pattern: '.terraform/', type: 'INCLUDE'],
                             [pattern: 'dynamic_inventory.ini', type: 'INCLUDE']
                         ]
                     )
+                    echo "✅ Workspace cleaned"
                 } catch (Exception e) {
                     echo "Workspace cleanup skipped: ${e.message}"
                 }
