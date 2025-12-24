@@ -112,12 +112,12 @@ pipeline {
                         // Capture Terraform outputs into environment variables
                         echo "Capturing Terraform outputs..."
                         env.INSTANCE_IP = sh(
-                            script: 'terraform output -raw ec2_public_ip',
+                            script: '/bin/bash -c "terraform output -raw ec2_public_ip"',
                             returnStdout: true
                         ).trim()
                         
                         env.INSTANCE_ID = sh(
-                            script: 'terraform output -raw ec2_instance_id',
+                            script: '/bin/bash -c "terraform output -raw ec2_instance_id"',
                             returnStdout: true
                         ).trim()
                         
