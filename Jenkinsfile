@@ -103,24 +103,32 @@ pipeline {
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                     script {
                         echo "Applying Terraform plan for ${env.BRANCH_NAME} environment"
-                        sh """#!/bin/bash
-                            terraform apply \
-                                -auto-approve \
-                                -var-file=${env.BRANCH_NAME}.tfvars
-                            
-                            # Capture outputs immediately
-                            terraform output -raw ec2_public_ip > instance_ip.txt
-                            terraform output -raw ec2_instance_id > instance_id.txt
-                        """
+                        
+                        // Apply and capture outputs in one go
+                        def tfOutput = sh(
+                            returnStdout: true,
+                            script: '''#!/bin/bash
+                                terraform apply -auto-approve -var-file=dev.tfvars
+                                echo "INSTANCE_IP=$(terraform output -raw ec2_public_ip)"
+                                echo "INSTANCE_ID=$(terraform output -raw ec2_instance_id)"
+                            '''
+                        ).trim()
+                        
                         echo "Infrastructure deployed successfully!"
+                        echo "Terraform output:\n${tfOutput}"
                         
-                        // Read captured outputs
-                        echo "Capturing Terraform outputs..."
-                        env.INSTANCE_IP = readFile('instance_ip.txt').trim()
-                        env.INSTANCE_ID = readFile('instance_id.txt').trim()
+                        // Extract values from output
+                        def ipLine = tfOutput.split('\n').find { it.startsWith('INSTANCE_IP=') }
+                        def idLine = tfOutput.split('\n').find { it.startsWith('INSTANCE_ID=') }
                         
-                        echo "Instance Public IP: ${env.INSTANCE_IP}"
-                        echo "Instance ID: ${env.INSTANCE_ID}"
+                        if (ipLine && idLine) {
+                            env.INSTANCE_IP = ipLine.replace('INSTANCE_IP=', '')
+                            env.INSTANCE_ID = idLine.replace('INSTANCE_ID=', '')
+                            echo "Instance Public IP: ${env.INSTANCE_IP}"
+                            echo "Instance ID: ${env.INSTANCE_ID}"
+                        } else {
+                            error "Failed to capture Terraform outputs from command output"
+                        }
                     }
                 }
             }
@@ -331,9 +339,9 @@ EOF
         }
         always {
             script {
-                // Delete dynamic inventory file and temp files
+                // Delete dynamic inventory file
                 try {
-                    sh 'rm -f dynamic_inventory.ini instance_ip.txt instance_id.txt'
+                    sh 'rm -f dynamic_inventory.ini'
                     echo "Cleaned up temporary files"
                 } catch (Exception e) {
                     echo "Temp file cleanup skipped: ${e.message}"
