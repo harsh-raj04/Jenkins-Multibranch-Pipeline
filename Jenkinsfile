@@ -1,304 +1,152 @@
 pipeline {
     agent any
-
+    
+    // Task 2: Pipeline Environment & Credentials (20 Marks)
     environment {
         TF_IN_AUTOMATION = 'true'
-        TF_INPUT = 'false'
         TF_CLI_ARGS = '-no-color'
-        ANSIBLE_HOST_KEY_CHECKING = 'False'
-        AWS_REGION = 'us-east-1'
-        
+        // AWS credentials will be injected securely using your existing credential
         AWS_CREDENTIAL = 'Devops-project-id'
         SSH_CRED_ID = 'ssh-private-key'
+        PATH = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:${env.PATH}"
     }
-
+    
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
                 echo "Checked out branch: ${env.BRANCH_NAME}"
             }
         }
-
-        stage('Terraform Init') {
-            when {
-                branch 'dev'
-            }
+        
+        // Task 3: Initialization & Variable Inspection (20 Marks)
+        stage('Terraform Initialization') {
             steps {
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                    sh '''
-                        echo "Initializing Terraform..."
-                        /opt/homebrew/bin//opt/homebrew/bin/terraform init
+                    script {
+                        echo "Initializing Terraform for branch: ${env.BRANCH_NAME}"
+                        sh '/bin/bash -c "terraform init"'
                         
-                        echo "==== Dev environment configuration ===="
-                        cat dev.tfvars
-                        echo "======================================="
-                    '''
+                        // Display the contents of the branch-specific tfvars file
+                        echo "Displaying ${env.BRANCH_NAME}.tfvars configuration:"
+                        sh """#!/bin/bash
+                            if [ -f ${env.BRANCH_NAME}.tfvars ]; then
+                                echo "==== Contents of ${env.BRANCH_NAME}.tfvars ===="
+                                cat ${env.BRANCH_NAME}.tfvars
+                                echo "=============================================="
+                            else
+                                echo "Warning: ${env.BRANCH_NAME}.tfvars not found!"
+                                exit 1
+                            fi
+                        """
+                    }
                 }
             }
         }
-
+        
+        // Task 4: Branch-Specific Terraform Planning (20 Marks)
         stage('Terraform Plan') {
+            steps {
+                withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
+                    script {
+                        echo "Generating Terraform plan for ${env.BRANCH_NAME} environment"
+                        sh """#!/bin/bash
+                            terraform plan \
+                                -var-file=${env.BRANCH_NAME}.tfvars \
+                                -out=${env.BRANCH_NAME}.tfplan
+                        """
+                        echo "Terraform plan generated successfully!"
+                    }
+                }
+            }
+        }
+        
+        // Task 5: Conditional Manual Approval Gate (20 Marks)
+        stage('Validate Apply') {
             when {
                 branch 'dev'
             }
             steps {
                 script {
-                    withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                        sh '''
-                            
-                            
-                            echo "Generating Terraform plan..."
-                            /opt/homebrew/bin/terraform plan -var-file=dev.tfvars -out=dev.tfplan
-                        '''
+                    echo "Requesting approval for dev environment deployment..."
+                    def userInput = input(
+                        id: 'ApprovalGate',
+                        message: 'Do you want to apply this Terraform plan to the dev environment?',
+                        parameters: [
+                            choice(
+                                name: 'APPROVAL',
+                                choices: ['Approve', 'Reject'],
+                                description: 'Select Approve to proceed with terraform apply'
+                            )
+                        ]
+                    )
+                    
+                    if (userInput == 'Approve') {
+                        echo "Deployment approved! Proceeding to apply..."
+                    } else {
+                        error "Deployment rejected by user. Aborting pipeline."
                     }
                 }
             }
         }
-
-        stage('Approve Deploy') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                input message: 'Apply Terraform plan to DEV environment?', ok: 'Deploy'
-            }
-        }
-
+        
+        // Terraform Apply (executes after approval)
         stage('Terraform Apply') {
             when {
                 branch 'dev'
             }
             steps {
-                script {
-                    withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                        sh '''
-                            
-                            
-                            echo "Applying Terraform plan..."
-                            /opt/homebrew/bin/terraform apply -auto-approve dev.tfplan
-                            echo "✓ Infrastructure deployed!"
-                        '''
+                withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
+                    script {
+                        echo "Applying Terraform plan for ${env.BRANCH_NAME} environment"
+                        sh """#!/bin/bash
+                            terraform apply \
+                                -auto-approve \
+                                ${env.BRANCH_NAME}.tfplan
+                        """
+                        echo "Infrastructure deployed successfully!"
                     }
                 }
             }
         }
-
-        stage('Capture Outputs') {
+        
+        // Display Outputs
+        stage('Show Outputs') {
             when {
                 branch 'dev'
             }
             steps {
-                script {
-                    env.INSTANCE_ID = sh(
-                        script: '''
-                            
-                            /opt/homebrew/bin/terraform output -raw ec2_instance_id
-                        ''',
-                        returnStdout: true
-                    ).trim()
-
-                    env.INSTANCE_IP = sh(
-                        script: '''
-                            
-                            /opt/homebrew/bin/terraform output -raw ec2_public_ip
-                        ''',
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Instance ID: ${env.INSTANCE_ID}"
-                    echo "Instance IP: ${env.INSTANCE_IP}"
-
-                    if (!env.INSTANCE_IP || !env.INSTANCE_ID) {
-                        error "Failed to capture outputs"
-                    }
-                }
-            }
-        }
-
-        stage('Create Inventory') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                sh '''
-                    
-                    
-                    cat > dynamic_inventory.ini <<EOF
-[splunk_servers]
-${INSTANCE_IP} ansible_user=ubuntu ansible_ssh_private_key_file=${HOME}/.ssh/devops.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'
-EOF
-                    
-                    echo "==== Ansible Inventory ===="
-                    cat dynamic_inventory.ini
-                    echo "==========================="
-                '''
-            }
-        }
-
-        stage('Wait for Instance') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                script {
-                    withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                        sh '''
-                            
-                            
-                            echo "Waiting for instance to be ready..."
-                            /opt/homebrew/bin/aws ec2 wait instance-status-ok --instance-ids ${INSTANCE_ID} --region ${AWS_REGION}
-                            echo "✓ Instance is ready!"
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Install Splunk') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                script {
-                    withCredentials([
-                        sshUserPrivateKey(
-                            credentialsId: 'ssh-private-key',
-                            keyFileVariable: 'SSH_KEY',
-                            usernameVariable: 'SSH_USER'
-                        )
-                    ]) {
-                        sh '''
-                            
-                            
-                            chmod 600 ${SSH_KEY}
-                            /opt/homebrew/bin/ansible-playbook \
-                                -i dynamic_inventory.ini \
-                                --private-key ${SSH_KEY} \
-                                playbooks/splunk.yml
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Test Splunk') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                script {
-                    withCredentials([
-                        sshUserPrivateKey(
-                            credentialsId: env.SSH_CRED_ID,
-                            keyFileVariable: 'SSH_KEY',
-                            usernameVariable: 'SSH_USER'
-                        )
-                    ]) {
-                        sh '''
-                            
-                            
-                            chmod 600 ${SSH_KEY}
-                            /opt/homebrew/bin/ansible-playbook \
-                                -i dynamic_inventory.ini \
-                                --private-key ${SSH_KEY} \
-                                playbooks/test-splunk.yml
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Show Results') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                sh '''
-                    
-                    
-                    echo "=========================================="
-                    echo "       DEPLOYMENT SUCCESSFUL!"
-                    echo "=========================================="
-                    /opt/homebrew/bin/terraform output
-                    echo ""
-                    echo "Splunk Web: http://${INSTANCE_IP}:8000"
-                    echo "  Username: admin"
-                    echo "  Password: SplunkAdmin123!"
-                    echo ""
-                    echo "Management: ${INSTANCE_IP}:8089"
-                    echo "=========================================="
-                '''
-            }
-        }
-
-        stage('Approve Destroy') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                input message: 'Destroy infrastructure?', ok: 'Yes, Destroy'
-            }
-        }
-
-        stage('Terraform Destroy') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                script {
-                    withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                        sh '''
-                            
-                            
-                            /opt/homebrew/bin/terraform destroy -auto-approve -var-file=dev.tfvars
-                            echo "✓ Infrastructure destroyed"
-                        '''
+                withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
+                    script {
+                        echo "Displaying Terraform outputs:"
+                        sh '/bin/bash -c "terraform output"'
                     }
                 }
             }
         }
     }
-
+    
     post {
-        always {
-            sh '''
-                
-                rm -f dynamic_inventory.ini dev.tfplan || true
-            '''
-        }
-
-        failure {
-            script {
-                echo "Pipeline failed - destroying infrastructure..."
-                withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                    sh '''
-                        
-                        
-                        /opt/homebrew/bin/terraform init -reconfigure || true
-                        /opt/homebrew/bin/terraform destroy -auto-approve -var-file=dev.tfvars || true
-                    '''
-                }
-            }
-        }
-
-        aborted {
-            script {
-                echo "Pipeline aborted - destroying infrastructure..."
-                withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                    sh '''
-                        
-                        
-                        /opt/homebrew/bin/terraform init -reconfigure || true
-                        /opt/homebrew/bin/terraform destroy -auto-approve -var-file=dev.tfvars || true
-                    '''
-                }
-            }
-        }
-
         success {
-            echo "✅ BYOD-3 Pipeline completed successfully!"
+            echo "Pipeline completed successfully for branch: ${env.BRANCH_NAME}"
+        }
+        failure {
+            echo "Pipeline failed for branch: ${env.BRANCH_NAME}"
+        }
+        always {
+            script {
+                try {
+                    cleanWs(
+                        deleteDirs: true,
+                        patterns: [
+                            [pattern: '*.tfplan', type: 'INCLUDE'],
+                            [pattern: '.terraform/', type: 'INCLUDE']
+                        ]
+                    )
+                } catch (Exception e) {
+                    echo "Workspace cleanup skipped: ${e.message}"
+                }
+            }
         }
     }
 }
