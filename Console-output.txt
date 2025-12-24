@@ -1,0 +1,993 @@
+Push event to branch dev
+15:38:00 Connecting to https://api.github.com using 2493956/******
+Obtained Jenkinsfile from df77c31ddc62ba2aae7181fe36ed98486263d54e
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Running on Jenkins
+ in /Users/harshraj/.jenkins/workspace/Jenkins-BYOD3-Pipeline_dev
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Declarative: Checkout SCM)
+[Pipeline] checkout
+The recommended git tool is: NONE
+using credential GitHub-App
+ > git rev-parse --resolve-git-dir /Users/harshraj/.jenkins/workspace/Jenkins-BYOD3-Pipeline_dev/.git # timeout=10
+Fetching changes from the remote Git repository
+ > git config remote.origin.url https://github.com/harsh-raj04/Jenkins-Multibranch-Pipeline.git # timeout=10
+Fetching without tags
+Fetching upstream changes from https://github.com/harsh-raj04/Jenkins-Multibranch-Pipeline.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.39.5 (Apple Git-154)'
+using GIT_ASKPASS to set credentials 
+ > git fetch --no-tags --force --progress -- https://github.com/harsh-raj04/Jenkins-Multibranch-Pipeline.git +refs/heads/dev:refs/remotes/origin/dev # timeout=10
+Checking out Revision df77c31ddc62ba2aae7181fe36ed98486263d54e (dev)
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f df77c31ddc62ba2aae7181fe36ed98486263d54e # timeout=10
+Commit message: "Fix: Add Splunk ports to security group"
+ > git rev-list --no-walk 6aac882ad47c1bc286bd23d713db1e6081fe42ad # timeout=10
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] withEnv
+[Pipeline] {
+[Pipeline] withEnv
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Checkout)
+[Pipeline] checkout
+The recommended git tool is: NONE
+using credential GitHub-App
+ > git rev-parse --resolve-git-dir /Users/harshraj/.jenkins/workspace/Jenkins-BYOD3-Pipeline_dev/.git # timeout=10
+Fetching changes from the remote Git repository
+ > git config remote.origin.url https://github.com/harsh-raj04/Jenkins-Multibranch-Pipeline.git # timeout=10
+Fetching without tags
+Fetching upstream changes from https://github.com/harsh-raj04/Jenkins-Multibranch-Pipeline.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.39.5 (Apple Git-154)'
+using GIT_ASKPASS to set credentials 
+ > git fetch --no-tags --force --progress -- https://github.com/harsh-raj04/Jenkins-Multibranch-Pipeline.git +refs/heads/dev:refs/remotes/origin/dev # timeout=10
+Checking out Revision df77c31ddc62ba2aae7181fe36ed98486263d54e (dev)
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f df77c31ddc62ba2aae7181fe36ed98486263d54e # timeout=10
+Commit message: "Fix: Add Splunk ports to security group"
+[Pipeline] echo
+Checked out branch: dev
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Terraform Initialization)
+[Pipeline] withCredentials
+Masking supported pattern matches of $AWS_ACCESS_KEY_ID or $AWS_SECRET_ACCESS_KEY
+[Pipeline] {
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+Initializing Terraform for branch: dev
+[Pipeline] sh
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
++ /bin/bash -c 'terraform init'
+Initializing the backend...
+Initializing provider plugins...
+- Reusing previous version of hashicorp/aws from the dependency lock file
+- Using previously-installed hashicorp/aws v5.100.0
+
+Terraform has been successfully initialized!
+[Pipeline] echo
+Displaying dev.tfvars configuration:
+[Pipeline] sh
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
+==== Contents of dev.tfvars ====
+# Development Environment Variables
+environment          = "dev"
+aws_region          = "us-east-1"
+vpc_cidr            = "10.0.0.0/16"
+public_subnet_cidr  = "10.0.1.0/24"
+availability_zone   = "us-east-1a"
+instance_type       = "t3.micro"
+ami_id              = "ami-0c7217cdde317cfec"  # Ubuntu 22.04 LTS
+key_name            = "devops"
+root_volume_size    = 20
+==============================================
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Terraform Plan)
+[Pipeline] withCredentials
+Masking supported pattern matches of $AWS_ACCESS_KEY_ID or $AWS_SECRET_ACCESS_KEY
+[Pipeline] {
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+Generating Terraform plan for dev environment
+[Pipeline] sh
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
+aws_vpc.main: Refreshing state... [id=vpc-02bcdd6552de10094]
+aws_internet_gateway.main: Refreshing state... [id=igw-0c38715414281c206]
+aws_subnet.public: Refreshing state... [id=subnet-0f64558d894dccfc3]
+aws_security_group.ec2: Refreshing state... [id=sg-0f4eba5136af75c28]
+aws_route_table.public: Refreshing state... [id=rtb-054ac332b1d70e04b]
+aws_instance.app_server: Refreshing state... [id=i-0c165bd42c76feaf7]
+aws_route_table_association.public: Refreshing state... [id=rtbassoc-06772752b5bda6eed]
+aws_eip.app_server: Refreshing state... [id=eipalloc-01a9d3dfa08d10487]
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  ~ update in-place
+
+Terraform will perform the following actions:
+
+  # aws_security_group.ec2 will be updated in-place
+  ~ resource "aws_security_group" "ec2" {
+        id                     = "sg-0f4eba5136af75c28"
+      ~ ingress                = [
+          + {
+              + cidr_blocks      = [
+                  + "0.0.0.0/0",
+                ]
+              + description      = "Splunk Management Port"
+              + from_port        = 8089
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "tcp"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 8089
+            },
+          + {
+              + cidr_blocks      = [
+                  + "0.0.0.0/0",
+                ]
+              + description      = "Splunk Web UI"
+              + from_port        = 8000
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "tcp"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 8000
+            },
+            # (4 unchanged elements hidden)
+        ]
+        name                   = "dev-ec2-sg"
+        tags                   = {
+            "Environment" = "dev"
+            "Name"        = "dev-ec2-sg"
+        }
+        # (8 unchanged attributes hidden)
+    }
+
+Plan: 0 to add, 1 to change, 0 to destroy.
+[Pipeline] echo
+Terraform plan generated successfully!
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Validate Apply)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+Requesting approval for dev environment deployment...
+[Pipeline] input
+Input requested
+Approved by Harsh Raj
+
+[Pipeline] echo
+Deployment approved! Proceeding to apply...
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Terraform Apply)
+[Pipeline] withCredentials
+Masking supported pattern matches of $AWS_ACCESS_KEY_ID or $AWS_SECRET_ACCESS_KEY
+[Pipeline] {
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+Applying Terraform with auto-approve for dev environment
+[Pipeline] sh
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
+aws_vpc.main: Refreshing state... [id=vpc-02bcdd6552de10094]
+aws_internet_gateway.main: Refreshing state... [id=igw-0c38715414281c206]
+aws_subnet.public: Refreshing state... [id=subnet-0f64558d894dccfc3]
+aws_security_group.ec2: Refreshing state... [id=sg-0f4eba5136af75c28]
+aws_route_table.public: Refreshing state... [id=rtb-054ac332b1d70e04b]
+aws_instance.app_server: Refreshing state... [id=i-0c165bd42c76feaf7]
+aws_route_table_association.public: Refreshing state... [id=rtbassoc-06772752b5bda6eed]
+aws_eip.app_server: Refreshing state... [id=eipalloc-01a9d3dfa08d10487]
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  ~ update in-place
+
+Terraform will perform the following actions:
+
+  # aws_security_group.ec2 will be updated in-place
+  ~ resource "aws_security_group" "ec2" {
+        id                     = "sg-0f4eba5136af75c28"
+      ~ ingress                = [
+          + {
+              + cidr_blocks      = [
+                  + "0.0.0.0/0",
+                ]
+              + description      = "Splunk Management Port"
+              + from_port        = 8089
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "tcp"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 8089
+            },
+          + {
+              + cidr_blocks      = [
+                  + "0.0.0.0/0",
+                ]
+              + description      = "Splunk Web UI"
+              + from_port        = 8000
+              + ipv6_cidr_blocks = []
+              + prefix_list_ids  = []
+              + protocol         = "tcp"
+              + security_groups  = []
+              + self             = false
+              + to_port          = 8000
+            },
+            # (4 unchanged elements hidden)
+        ]
+        name                   = "dev-ec2-sg"
+        tags                   = {
+            "Environment" = "dev"
+            "Name"        = "dev-ec2-sg"
+        }
+        # (8 unchanged attributes hidden)
+    }
+
+Plan: 0 to add, 1 to change, 0 to destroy.
+aws_security_group.ec2: Modifying... [id=sg-0f4eba5136af75c28]
+aws_security_group.ec2: Modifications complete after 4s [id=sg-0f4eba5136af75c28]
+
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+
+Outputs:
+
+ec2_instance_id = "i-0c165bd42c76feaf7"
+ec2_private_ip = "10.0.1.134"
+ec2_public_ip = "98.87.184.105"
+environment = "dev"
+public_subnet_id = "subnet-0f64558d894dccfc3"
+security_group_id = "sg-0f4eba5136af75c28"
+vpc_id = "vpc-02bcdd6552de10094"
+[Pipeline] echo
+Infrastructure deployed successfully!
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Capture Outputs)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+Capturing instance_public_ip and instance_id from Terraform outputs...
+[Pipeline] sh
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
++ terraform output -raw ec2_public_ip
+[Pipeline] sh
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
++ terraform output -raw ec2_instance_id
+[Pipeline] echo
+✅ Captured INSTANCE_IP: 98.87.184.105
+[Pipeline] echo
+✅ Captured INSTANCE_ID: i-0c165bd42c76feaf7
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Create Dynamic Inventory)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+Creating dynamic_inventory.ini file...
+[Pipeline] sh
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
+[Pipeline] echo
+Dynamic inventory file created successfully!
+[Pipeline] sh
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
++ cat dynamic_inventory.ini
+[splunk_servers]
+98.87.184.105 ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (AWS Health Check)
+[Pipeline] withCredentials
+Masking supported pattern matches of $AWS_ACCESS_KEY_ID or $AWS_SECRET_ACCESS_KEY
+[Pipeline] {
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+Waiting for instance i-0c165bd42c76feaf7 to pass health checks...
+[Pipeline] sh
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
+[Pipeline] echo
+✅ EC2 instance health checks passed successfully!
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Configure Splunk)
+[Pipeline] withCredentials
+Masking supported pattern matches of $SSH_KEY
+[Pipeline] {
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+Installing Splunk using Ansible...
+[Pipeline] sh
+Warning: A secret was passed to "sh" using Groovy String interpolation, which is insecure.
+		 Affected argument(s) used the following variable(s): [SSH_KEY]
+		 See https://jenkins.io/redirect/groovy-string-interpolation for details.
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
++ export ANSIBLE_HOST_KEY_CHECKING=False
++ ANSIBLE_HOST_KEY_CHECKING=False
++ ansible-playbook playbooks/splunk.yml -i dynamic_inventory.ini --private-key=**** '--ssh-common-args=-o StrictHostKeyChecking=no'
+
+PLAY [Install and Configure Splunk] ********************************************
+
+TASK [Gathering Facts] *********************************************************
+Wednesday 24 December 2025  15:39:14 +0530 (0:00:00.031)       0:00:00.031 **** 
+[WARNING]: Host '98.87.184.105' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+ok: [98.87.184.105]
+
+TASK [Update apt cache] ********************************************************
+Wednesday 24 December 2025  15:39:30 +0530 (0:00:15.680)       0:00:15.711 **** 
+ok: [98.87.184.105]
+
+TASK [Install required packages] ***********************************************
+Wednesday 24 December 2025  15:39:42 +0530 (0:00:12.448)       0:00:28.160 **** 
+ok: [98.87.184.105]
+
+TASK [Create splunk user] ******************************************************
+Wednesday 24 December 2025  15:39:52 +0530 (0:00:09.968)       0:00:38.129 **** 
+ok: [98.87.184.105]
+
+TASK [Check if Splunk is already downloaded] ***********************************
+Wednesday 24 December 2025  15:40:01 +0530 (0:00:08.473)       0:00:46.602 **** 
+ok: [98.87.184.105]
+
+TASK [Download Splunk] *********************************************************
+Wednesday 24 December 2025  15:40:15 +0530 (0:00:14.145)       0:01:00.747 **** 
+skipping: [98.87.184.105]
+
+TASK [Extract Splunk] **********************************************************
+Wednesday 24 December 2025  15:40:15 +0530 (0:00:00.025)       0:01:00.773 **** 
+skipping: [98.87.184.105]
+
+TASK [Set ownership of Splunk directory] ***************************************
+Wednesday 24 December 2025  15:40:36 +0530 (0:00:21.559)       0:01:22.333 **** 
+ok: [98.87.184.105]
+
+TASK [Create user-seed.conf for initial admin password] ************************
+Wednesday 24 December 2025  15:40:48 +0530 (0:00:11.599)       0:01:33.932 **** 
+changed: [98.87.184.105]
+
+TASK [Start Splunk and accept license] *****************************************
+Wednesday 24 December 2025  15:41:40 +0530 (0:00:52.094)       0:02:26.026 **** 
+ok: [98.87.184.105]
+
+TASK [Enable Splunk to start at boot] ******************************************
+Wednesday 24 December 2025  15:41:48 +0530 (0:00:07.497)       0:02:33.523 **** 
+skipping: [98.87.184.105]
+
+TASK [Wait for Splunk web interface] *******************************************
+Wednesday 24 December 2025  15:41:48 +0530 (0:00:00.017)       0:02:33.541 **** 
+ok: [98.87.184.105]
+
+TASK [Display Splunk access information] ***************************************
+Wednesday 24 December 2025  15:42:05 +0530 (0:00:17.914)       0:02:51.455 **** 
+ok: [98.87.184.105] => {
+    "msg": [
+        "Splunk installation completed!",
+        "Access Splunk at: http://98.87.184.105:8000",
+        "Username: admin",
+        "Password: SplunkAdmin123!"
+    ]
+}
+
+PLAY RECAP *********************************************************************
+98.87.184.105              : ok=10   changed=1    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+
+
+TASKS RECAP ********************************************************************
+Wednesday 24 December 2025  15:42:05 +0530 (0:00:00.016)       0:02:51.472 **** 
+=============================================================================== 
+Create user-seed.conf for initial admin password ----------------------- 52.09s
+Extract Splunk --------------------------------------------------------- 21.56s
+Wait for Splunk web interface ------------------------------------------ 17.91s
+Gathering Facts -------------------------------------------------------- 15.68s
+Check if Splunk is already downloaded ---------------------------------- 14.15s
+Update apt cache ------------------------------------------------------- 12.45s
+Set ownership of Splunk directory -------------------------------------- 11.60s
+Install required packages ----------------------------------------------- 9.97s
+Create splunk user ------------------------------------------------------ 8.47s
+Start Splunk and accept license ----------------------------------------- 7.50s
+Download Splunk --------------------------------------------------------- 0.03s
+Enable Splunk to start at boot ------------------------------------------ 0.02s
+Display Splunk access information --------------------------------------- 0.02s
+[Pipeline] echo
+Splunk installation completed!
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Test Splunk)
+[Pipeline] withCredentials
+Masking supported pattern matches of $SSH_KEY
+[Pipeline] {
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+Testing Splunk installation...
+[Pipeline] sh
+Warning: A secret was passed to "sh" using Groovy String interpolation, which is insecure.
+		 Affected argument(s) used the following variable(s): [SSH_KEY]
+		 See https://jenkins.io/redirect/groovy-string-interpolation for details.
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
++ export ANSIBLE_HOST_KEY_CHECKING=False
++ ANSIBLE_HOST_KEY_CHECKING=False
++ ansible-playbook playbooks/test-splunk.yml -i dynamic_inventory.ini --private-key=**** '--ssh-common-args=-o StrictHostKeyChecking=no'
+
+PLAY [Test Splunk Installation] ************************************************
+
+TASK [Gathering Facts] *********************************************************
+Wednesday 24 December 2025  15:42:08 +0530 (0:00:00.011)       0:00:00.011 **** 
+[WARNING]: Host '98.87.184.105' is using the discovered Python interpreter at '/usr/bin/python3.10', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.
+ok: [98.87.184.105]
+
+TASK [Check if Splunk process is running] **************************************
+Wednesday 24 December 2025  15:42:24 +0530 (0:00:15.797)       0:00:15.808 **** 
+ok: [98.87.184.105]
+
+TASK [Verify Splunk service status] ********************************************
+Wednesday 24 December 2025  15:42:32 +0530 (0:00:08.118)       0:00:23.927 **** 
+ok: [98.87.184.105]
+
+TASK [Check Splunk web port (8000) is listening] *******************************
+Wednesday 24 December 2025  15:42:40 +0530 (0:00:07.377)       0:00:31.304 **** 
+ok: [98.87.184.105]
+
+TASK [Check Splunk management port (8089) is listening] ************************
+Wednesday 24 December 2025  15:42:47 +0530 (0:00:07.615)       0:00:38.920 **** 
+ok: [98.87.184.105]
+
+TASK [Test Splunk web interface accessibility] *********************************
+Wednesday 24 December 2025  15:42:55 +0530 (0:00:08.094)       0:00:47.014 **** 
+ok: [98.87.184.105]
+
+TASK [Display test results] ****************************************************
+Wednesday 24 December 2025  15:43:21 +0530 (0:00:25.799)       0:01:12.814 **** 
+ok: [98.87.184.105] => {
+    "msg": [
+        "✅ Splunk process is running (PID: 4007\n4008\n4250\n4774\n4775)",
+        "✅ Splunk service status: splunkd is running (PID: 4007).",
+        "✅ Web interface (port 8000) is accessible",
+        "✅ Management interface (port 8089) is accessible",
+        "✅ HTTP response: 200",
+        "",
+        "Splunk is fully operational and ready to use!"
+    ]
+}
+
+PLAY RECAP *********************************************************************
+98.87.184.105              : ok=7    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+
+TASKS RECAP ********************************************************************
+Wednesday 24 December 2025  15:43:21 +0530 (0:00:00.046)       0:01:12.860 **** 
+=============================================================================== 
+Test Splunk web interface accessibility -------------------------------- 25.80s
+Gathering Facts -------------------------------------------------------- 15.80s
+Check if Splunk process is running -------------------------------------- 8.12s
+Check Splunk management port (8089) is listening ------------------------ 8.09s
+Check Splunk web port (8000) is listening ------------------------------- 7.62s
+Verify Splunk service status -------------------------------------------- 7.38s
+Display test results ---------------------------------------------------- 0.05s
+[Pipeline] echo
+✅ Splunk service is active and reachable!
+[Pipeline] echo
+🌐 Access Splunk at: http://98.87.184.105:8000
+[Pipeline] echo
+👤 Username: admin | Password: SplunkAdmin123!
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Validate Destroy)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+Requesting approval for infrastructure destruction...
+[Pipeline] input
+Input requested
+Approved by Harsh Raj
+
+[Pipeline] echo
+Destruction approved! Proceeding to destroy stage...
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Destroy Infrastructure)
+[Pipeline] withCredentials
+Masking supported pattern matches of $AWS_ACCESS_KEY_ID or $AWS_SECRET_ACCESS_KEY
+[Pipeline] {
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+Destroying infrastructure for dev environment...
+[Pipeline] sh
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
+aws_vpc.main: Refreshing state... [id=vpc-02bcdd6552de10094]
+aws_subnet.public: Refreshing state... [id=subnet-0f64558d894dccfc3]
+aws_internet_gateway.main: Refreshing state... [id=igw-0c38715414281c206]
+aws_security_group.ec2: Refreshing state... [id=sg-0f4eba5136af75c28]
+aws_route_table.public: Refreshing state... [id=rtb-054ac332b1d70e04b]
+aws_instance.app_server: Refreshing state... [id=i-0c165bd42c76feaf7]
+aws_route_table_association.public: Refreshing state... [id=rtbassoc-06772752b5bda6eed]
+aws_eip.app_server: Refreshing state... [id=eipalloc-01a9d3dfa08d10487]
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  - destroy
+
+Terraform will perform the following actions:
+
+  # aws_eip.app_server will be destroyed
+  - resource "aws_eip" "app_server" {
+      - allocation_id            = "eipalloc-01a9d3dfa08d10487" -> null
+      - arn                      = "arn:aws:ec2:us-east-1:695547473485:elastic-ip/eipalloc-01a9d3dfa08d10487" -> null
+      - association_id           = "eipassoc-09bdb6d071a98bea2" -> null
+      - domain                   = "vpc" -> null
+      - id                       = "eipalloc-01a9d3dfa08d10487" -> null
+      - instance                 = "i-0c165bd42c76feaf7" -> null
+      - network_border_group     = "us-east-1" -> null
+      - network_interface        = "eni-00cf83196bd8d118e" -> null
+      - private_dns              = "ip-10-0-1-134.ec2.internal" -> null
+      - private_ip               = "10.0.1.134" -> null
+      - public_dns               = "ec2-98-87-184-105.compute-1.amazonaws.com" -> null
+      - public_ip                = "98.87.184.105" -> null
+      - public_ipv4_pool         = "amazon" -> null
+      - tags                     = {
+          - "Environment" = "dev"
+          - "Name"        = "dev-eip"
+        } -> null
+      - tags_all                 = {
+          - "Environment" = "dev"
+          - "Name"        = "dev-eip"
+        } -> null
+      - vpc                      = true -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_instance.app_server will be destroyed
+  - resource "aws_instance" "app_server" {
+      - ami                                  = "ami-0c7217cdde317cfec" -> null
+      - arn                                  = "arn:aws:ec2:us-east-1:695547473485:instance/i-0c165bd42c76feaf7" -> null
+      - associate_public_ip_address          = true -> null
+      - availability_zone                    = "us-east-1a" -> null
+      - cpu_core_count                       = 1 -> null
+      - cpu_threads_per_core                 = 2 -> null
+      - disable_api_stop                     = false -> null
+      - disable_api_termination              = false -> null
+      - ebs_optimized                        = false -> null
+      - get_password_data                    = false -> null
+      - hibernation                          = false -> null
+      - id                                   = "i-0c165bd42c76feaf7" -> null
+      - instance_initiated_shutdown_behavior = "stop" -> null
+      - instance_state                       = "running" -> null
+      - instance_type                        = "t3.micro" -> null
+      - ipv6_address_count                   = 0 -> null
+      - ipv6_addresses                       = [] -> null
+      - key_name                             = "devops" -> null
+      - monitoring                           = false -> null
+      - placement_partition_number           = 0 -> null
+      - primary_network_interface_id         = "eni-00cf83196bd8d118e" -> null
+      - private_dns                          = "ip-10-0-1-134.ec2.internal" -> null
+      - private_ip                           = "10.0.1.134" -> null
+      - public_dns                           = "ec2-98-87-184-105.compute-1.amazonaws.com" -> null
+      - public_ip                            = "98.87.184.105" -> null
+      - secondary_private_ips                = [] -> null
+      - security_groups                      = [] -> null
+      - source_dest_check                    = true -> null
+      - subnet_id                            = "subnet-0f64558d894dccfc3" -> null
+      - tags                                 = {
+          - "Environment" = "dev"
+          - "ManagedBy"   = "Terraform"
+          - "Name"        = "dev-app-server"
+        } -> null
+      - tags_all                             = {
+          - "Environment" = "dev"
+          - "ManagedBy"   = "Terraform"
+          - "Name"        = "dev-app-server"
+        } -> null
+      - tenancy                              = "default" -> null
+      - user_data                            = "8f08cc6993e95d02279876c07e7d0621b12ca18f" -> null
+      - user_data_replace_on_change          = false -> null
+      - vpc_security_group_ids               = [
+          - "sg-0f4eba5136af75c28",
+        ] -> null
+        # (7 unchanged attributes hidden)
+
+      - capacity_reservation_specification {
+          - capacity_reservation_preference = "open" -> null
+        }
+
+      - cpu_options {
+          - core_count       = 1 -> null
+          - threads_per_core = 2 -> null
+            # (1 unchanged attribute hidden)
+        }
+
+      - credit_specification {
+          - cpu_credits = "unlimited" -> null
+        }
+
+      - enclave_options {
+          - enabled = false -> null
+        }
+
+      - maintenance_options {
+          - auto_recovery = "default" -> null
+        }
+
+      - metadata_options {
+          - http_endpoint               = "enabled" -> null
+          - http_protocol_ipv6          = "disabled" -> null
+          - http_put_response_hop_limit = 1 -> null
+          - http_tokens                 = "optional" -> null
+          - instance_metadata_tags      = "disabled" -> null
+        }
+
+      - private_dns_name_options {
+          - enable_resource_name_dns_a_record    = false -> null
+          - enable_resource_name_dns_aaaa_record = false -> null
+          - hostname_type                        = "ip-name" -> null
+        }
+
+      - root_block_device {
+          - delete_on_termination = true -> null
+          - device_name           = "/dev/sda1" -> null
+          - encrypted             = true -> null
+          - iops                  = 3000 -> null
+          - kms_key_id            = "arn:aws:kms:us-east-1:695547473485:key/859e26dc-7769-4b79-8e25-018a3fbdaab4" -> null
+          - tags                  = {} -> null
+          - tags_all              = {} -> null
+          - throughput            = 125 -> null
+          - volume_id             = "vol-0da7ddcdeed243b43" -> null
+          - volume_size           = 20 -> null
+          - volume_type           = "gp3" -> null
+        }
+    }
+
+  # aws_internet_gateway.main will be destroyed
+  - resource "aws_internet_gateway" "main" {
+      - arn      = "arn:aws:ec2:us-east-1:695547473485:internet-gateway/igw-0c38715414281c206" -> null
+      - id       = "igw-0c38715414281c206" -> null
+      - owner_id = "695547473485" -> null
+      - tags     = {
+          - "Environment" = "dev"
+          - "Name"        = "dev-igw"
+        } -> null
+      - tags_all = {
+          - "Environment" = "dev"
+          - "Name"        = "dev-igw"
+        } -> null
+      - vpc_id   = "vpc-02bcdd6552de10094" -> null
+    }
+
+  # aws_route_table.public will be destroyed
+  - resource "aws_route_table" "public" {
+      - arn              = "arn:aws:ec2:us-east-1:695547473485:route-table/rtb-054ac332b1d70e04b" -> null
+      - id               = "rtb-054ac332b1d70e04b" -> null
+      - owner_id         = "695547473485" -> null
+      - propagating_vgws = [] -> null
+      - route            = [
+          - {
+              - cidr_block                 = "0.0.0.0/0"
+              - gateway_id                 = "igw-0c38715414281c206"
+                # (11 unchanged attributes hidden)
+            },
+        ] -> null
+      - tags             = {
+          - "Environment" = "dev"
+          - "Name"        = "dev-public-rt"
+        } -> null
+      - tags_all         = {
+          - "Environment" = "dev"
+          - "Name"        = "dev-public-rt"
+        } -> null
+      - vpc_id           = "vpc-02bcdd6552de10094" -> null
+    }
+
+  # aws_route_table_association.public will be destroyed
+  - resource "aws_route_table_association" "public" {
+      - id             = "rtbassoc-06772752b5bda6eed" -> null
+      - route_table_id = "rtb-054ac332b1d70e04b" -> null
+      - subnet_id      = "subnet-0f64558d894dccfc3" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_security_group.ec2 will be destroyed
+  - resource "aws_security_group" "ec2" {
+      - arn                    = "arn:aws:ec2:us-east-1:695547473485:security-group/sg-0f4eba5136af75c28" -> null
+      - description            = "Security group for EC2 instance" -> null
+      - egress                 = [
+          - {
+              - cidr_blocks      = [
+                  - "0.0.0.0/0",
+                ]
+              - description      = "All outbound traffic"
+              - from_port        = 0
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "-1"
+              - security_groups  = []
+              - self             = false
+              - to_port          = 0
+            },
+        ] -> null
+      - id                     = "sg-0f4eba5136af75c28" -> null
+      - ingress                = [
+          - {
+              - cidr_blocks      = [
+                  - "0.0.0.0/0",
+                ]
+              - description      = "Custom Application Port"
+              - from_port        = 8080
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = []
+              - self             = false
+              - to_port          = 8080
+            },
+          - {
+              - cidr_blocks      = [
+                  - "0.0.0.0/0",
+                ]
+              - description      = "HTTP"
+              - from_port        = 80
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = []
+              - self             = false
+              - to_port          = 80
+            },
+          - {
+              - cidr_blocks      = [
+                  - "0.0.0.0/0",
+                ]
+              - description      = "HTTPS"
+              - from_port        = 443
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = []
+              - self             = false
+              - to_port          = 443
+            },
+          - {
+              - cidr_blocks      = [
+                  - "0.0.0.0/0",
+                ]
+              - description      = "SSH"
+              - from_port        = 22
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = []
+              - self             = false
+              - to_port          = 22
+            },
+          - {
+              - cidr_blocks      = [
+                  - "0.0.0.0/0",
+                ]
+              - description      = "Splunk Management Port"
+              - from_port        = 8089
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = []
+              - self             = false
+              - to_port          = 8089
+            },
+          - {
+              - cidr_blocks      = [
+                  - "0.0.0.0/0",
+                ]
+              - description      = "Splunk Web UI"
+              - from_port        = 8000
+              - ipv6_cidr_blocks = []
+              - prefix_list_ids  = []
+              - protocol         = "tcp"
+              - security_groups  = []
+              - self             = false
+              - to_port          = 8000
+            },
+        ] -> null
+      - name                   = "dev-ec2-sg" -> null
+      - owner_id               = "695547473485" -> null
+      - revoke_rules_on_delete = false -> null
+      - tags                   = {
+          - "Environment" = "dev"
+          - "Name"        = "dev-ec2-sg"
+        } -> null
+      - tags_all               = {
+          - "Environment" = "dev"
+          - "Name"        = "dev-ec2-sg"
+        } -> null
+      - vpc_id                 = "vpc-02bcdd6552de10094" -> null
+        # (1 unchanged attribute hidden)
+    }
+
+  # aws_subnet.public will be destroyed
+  - resource "aws_subnet" "public" {
+      - arn                                            = "arn:aws:ec2:us-east-1:695547473485:subnet/subnet-0f64558d894dccfc3" -> null
+      - assign_ipv6_address_on_creation                = false -> null
+      - availability_zone                              = "us-east-1a" -> null
+      - availability_zone_id                           = "use1-az1" -> null
+      - cidr_block                                     = "10.0.1.0/24" -> null
+      - enable_dns64                                   = false -> null
+      - enable_lni_at_device_index                     = 0 -> null
+      - enable_resource_name_dns_a_record_on_launch    = false -> null
+      - enable_resource_name_dns_aaaa_record_on_launch = false -> null
+      - id                                             = "subnet-0f64558d894dccfc3" -> null
+      - ipv6_native                                    = false -> null
+      - map_customer_owned_ip_on_launch                = false -> null
+      - map_public_ip_on_launch                        = true -> null
+      - owner_id                                       = "695547473485" -> null
+      - private_dns_hostname_type_on_launch            = "ip-name" -> null
+      - tags                                           = {
+          - "Environment" = "dev"
+          - "Name"        = "dev-public-subnet"
+        } -> null
+      - tags_all                                       = {
+          - "Environment" = "dev"
+          - "Name"        = "dev-public-subnet"
+        } -> null
+      - vpc_id                                         = "vpc-02bcdd6552de10094" -> null
+        # (4 unchanged attributes hidden)
+    }
+
+  # aws_vpc.main will be destroyed
+  - resource "aws_vpc" "main" {
+      - arn                                  = "arn:aws:ec2:us-east-1:695547473485:vpc/vpc-02bcdd6552de10094" -> null
+      - assign_generated_ipv6_cidr_block     = false -> null
+      - cidr_block                           = "10.0.0.0/16" -> null
+      - default_network_acl_id               = "acl-04947b8fa1c6f7fc1" -> null
+      - default_route_table_id               = "rtb-08d61afb1e4756bff" -> null
+      - default_security_group_id            = "sg-0f57302ee3ec98b2f" -> null
+      - dhcp_options_id                      = "dopt-0c41cc17d616003ef" -> null
+      - enable_dns_hostnames                 = true -> null
+      - enable_dns_support                   = true -> null
+      - enable_network_address_usage_metrics = false -> null
+      - id                                   = "vpc-02bcdd6552de10094" -> null
+      - instance_tenancy                     = "default" -> null
+      - ipv6_netmask_length                  = 0 -> null
+      - main_route_table_id                  = "rtb-08d61afb1e4756bff" -> null
+      - owner_id                             = "695547473485" -> null
+      - tags                                 = {
+          - "Environment" = "dev"
+          - "Name"        = "dev-vpc"
+          - "Project"     = "Jenkins-BYOD3"
+        } -> null
+      - tags_all                             = {
+          - "Environment" = "dev"
+          - "Name"        = "dev-vpc"
+          - "Project"     = "Jenkins-BYOD3"
+        } -> null
+        # (4 unchanged attributes hidden)
+    }
+
+Plan: 0 to add, 0 to change, 8 to destroy.
+
+Changes to Outputs:
+  - ec2_instance_id   = "i-0c165bd42c76feaf7" -> null
+  - ec2_private_ip    = "10.0.1.134" -> null
+  - ec2_public_ip     = "98.87.184.105" -> null
+  - environment       = "dev" -> null
+  - public_subnet_id  = "subnet-0f64558d894dccfc3" -> null
+  - security_group_id = "sg-0f4eba5136af75c28" -> null
+  - vpc_id            = "vpc-02bcdd6552de10094" -> null
+aws_eip.app_server: Destroying... [id=eipalloc-01a9d3dfa08d10487]
+aws_route_table_association.public: Destroying... [id=rtbassoc-06772752b5bda6eed]
+aws_route_table_association.public: Destruction complete after 3s
+aws_route_table.public: Destroying... [id=rtb-054ac332b1d70e04b]
+aws_eip.app_server: Destruction complete after 5s
+aws_instance.app_server: Destroying... [id=i-0c165bd42c76feaf7]
+aws_route_table.public: Destruction complete after 3s
+aws_internet_gateway.main: Destroying... [id=igw-0c38715414281c206]
+aws_instance.app_server: Still destroying... [id=i-0c165bd42c76feaf7, 10s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-0c38715414281c206, 10s elapsed]
+aws_instance.app_server: Still destroying... [id=i-0c165bd42c76feaf7, 20s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-0c38715414281c206, 20s elapsed]
+aws_instance.app_server: Still destroying... [id=i-0c165bd42c76feaf7, 30s elapsed]
+aws_internet_gateway.main: Still destroying... [id=igw-0c38715414281c206, 30s elapsed]
+aws_internet_gateway.main: Destruction complete after 36s
+aws_instance.app_server: Destruction complete after 40s
+aws_subnet.public: Destroying... [id=subnet-0f64558d894dccfc3]
+aws_security_group.ec2: Destroying... [id=sg-0f4eba5136af75c28]
+aws_subnet.public: Destruction complete after 2s
+aws_security_group.ec2: Destruction complete after 3s
+aws_vpc.main: Destroying... [id=vpc-02bcdd6552de10094]
+aws_vpc.main: Destruction complete after 2s
+
+Destroy complete! Resources: 8 destroyed.
+[Pipeline] echo
+Infrastructure destroyed successfully!
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Declarative: Post Actions)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] fileExists
+[Pipeline] echo
+Deleting dynamic_inventory.ini...
+[Pipeline] sh
+Warning: JENKINS-41339 probably bogus PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH; perhaps you meant to use ‘PATH+EXTRA=/something/bin’?
++ rm -f dynamic_inventory.ini
+[Pipeline] echo
+✅ Dynamic inventory file deleted
+[Pipeline] cleanWs
+[WS-CLEANUP] Deleting project workspace...
+[WS-CLEANUP] done
+[Pipeline] echo
+✅ Workspace cleaned
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] echo
+✅ Pipeline completed successfully for branch: dev
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] }
+[Pipeline] // withEnv
+[Pipeline] }
+[Pipeline] // withEnv
+[Pipeline] }
+[Pipeline] // node
+[Pipeline] End of Pipeline
+
+GitHub has been notified of this commit’s build result
+
+Finished: SUCCESS
