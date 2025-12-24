@@ -143,10 +143,8 @@ pipeline {
                 script {
                     echo "Creating dynamic inventory file for Ansible..."
                     sh """#!/bin/bash
-                        cat > dynamic_inventory.ini << EOF
-[splunk_servers]
-${env.INSTANCE_IP} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/devops.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'
-EOF
+                        echo "[splunk_servers]" > dynamic_inventory.ini
+                        echo "${env.INSTANCE_IP} ansible_user=ubuntu ansible_ssh_private_key_file=\${HOME}/.ssh/devops.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> dynamic_inventory.ini
                     """
                     
                     echo "Dynamic inventory created:"
