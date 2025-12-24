@@ -7,8 +7,8 @@ pipeline {
         ANSIBLE_HOST_KEY_CHECKING = 'False'
         AWS_REGION = 'us-east-1'
         
-        // Fix PATH for macOS Jenkins
-        PATH = "/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+        // Fix PATH for macOS Jenkins - APPEND to existing PATH
+        PATH = "/opt/homebrew/bin:/opt/homebrew/sbin:${env.PATH}"
     }
 
     stages {
