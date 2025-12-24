@@ -8,7 +8,6 @@ pipeline {
         // AWS credentials will be injected securely using your existing credential
         AWS_CREDENTIAL = 'Devops-project-id'
         SSH_CRED_ID = 'ssh-private-key'
-        PATH = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:${env.PATH}"
         // Dynamic variables for BYOD-3
         INSTANCE_IP = ''
         INSTANCE_ID = ''
@@ -106,31 +105,17 @@ pipeline {
                             terraform apply \
                                 -auto-approve \
                                 -var-file=${env.BRANCH_NAME}.tfvars
+                            
+                            # Capture outputs immediately
+                            terraform output -raw ec2_public_ip > instance_ip.txt
+                            terraform output -raw ec2_instance_id > instance_id.txt
                         """
                         echo "Infrastructure deployed successfully!"
                         
-                        // Capture Terraform outputs into environment variables
+                        // Read captured outputs
                         echo "Capturing Terraform outputs..."
-                        
-                        // Write outputs to temporary files
-                        sh '''#!/bin/bash
-                            terraform output -raw ec2_public_ip > /tmp/instance_ip.txt 2>/dev/null || echo "ERROR" > /tmp/instance_ip.txt
-                            terraform output -raw ec2_instance_id > /tmp/instance_id.txt 2>/dev/null || echo "ERROR" > /tmp/instance_id.txt
-                        '''
-                        
-                        // Read from files into variables
-                        def instanceIp = readFile('/tmp/instance_ip.txt').trim()
-                        def instanceId = readFile('/tmp/instance_id.txt').trim()
-                        
-                        if (instanceIp == 'ERROR' || instanceId == 'ERROR') {
-                            error "Failed to capture Terraform outputs"
-                        }
-                        
-                        env.INSTANCE_IP = instanceIp
-                        env.INSTANCE_ID = instanceId
-                        
-                        // Clean up temp files
-                        sh 'rm -f /tmp/instance_ip.txt /tmp/instance_id.txt'
+                        env.INSTANCE_IP = readFile('instance_ip.txt').trim()
+                        env.INSTANCE_ID = readFile('instance_id.txt').trim()
                         
                         echo "Instance Public IP: ${env.INSTANCE_IP}"
                         echo "Instance ID: ${env.INSTANCE_ID}"
@@ -344,9 +329,9 @@ EOF
         }
         always {
             script {
-                // Delete dynamic inventory file
+                // Delete dynamic inventory file and temp files
                 try {
-                    sh 'rm -f dynamic_inventory.ini /tmp/instance_ip.txt /tmp/instance_id.txt'
+                    sh 'rm -f dynamic_inventory.ini instance_ip.txt instance_id.txt'
                     echo "Cleaned up temporary files"
                 } catch (Exception e) {
                     echo "Temp file cleanup skipped: ${e.message}"
