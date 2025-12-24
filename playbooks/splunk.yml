@@ -75,7 +75,6 @@
       register: splunk_start
     
     - name: Enable Splunk to start at boot
-      become_user: splunk
       command: "{{ splunk_home }}/bin/splunk enable boot-start -user splunk --accept-license --answer-yes --no-prompt"
       args:
         creates: "/etc/init.d/splunk"
