@@ -119,13 +119,16 @@ pipeline {
                 script {
                     echo "Capturing Terraform outputs..."
                     
-                    // Write to simple text files using explicit bash
-                    sh '/bin/bash -c "terraform output -raw ec2_public_ip > ip.txt"'
-                    sh '/bin/bash -c "terraform output -raw ec2_instance_id > id.txt"'
+                    // Use returnStdout directly (now that Pipeline Utility Steps plugin is installed)
+                    env.INSTANCE_IP = sh(
+                        script: 'terraform output -raw ec2_public_ip',
+                        returnStdout: true
+                    ).trim()
                     
-                    // Read files directly (readFile is a Jenkins built-in)
-                    env.INSTANCE_IP = readFile('ip.txt').trim()
-                    env.INSTANCE_ID = readFile('id.txt').trim()
+                    env.INSTANCE_ID = sh(
+                        script: 'terraform output -raw ec2_instance_id',
+                        returnStdout: true
+                    ).trim()
                     
                     echo "✓ Captured Instance IP: ${env.INSTANCE_IP}"
                     echo "✓ Captured Instance ID: ${env.INSTANCE_ID}"
