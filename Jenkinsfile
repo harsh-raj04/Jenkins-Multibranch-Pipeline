@@ -117,18 +117,19 @@ pipeline {
             }
             steps {
                 script {
-                    echo "Capturing Terraform outputs..."
+                    echo "Capturing Terraform outputs using environment properties file..."
                     
-                    // Capture using returnStdout in a clean scope
-                    env.INSTANCE_IP = sh(
-                        script: 'terraform output -raw ec2_public_ip',
-                        returnStdout: true
-                    ).trim()
+                    // Write to a properties file that Jenkins can load
+                    sh '''
+                        echo "INSTANCE_IP=$(terraform output -raw ec2_public_ip)" > terraform.env
+                        echo "INSTANCE_ID=$(terraform output -raw ec2_instance_id)" >> terraform.env
+                        cat terraform.env
+                    '''
                     
-                    env.INSTANCE_ID = sh(
-                        script: 'terraform output -raw ec2_instance_id',
-                        returnStdout: true
-                    ).trim()
+                    // Load the properties file
+                    def props = readProperties file: 'terraform.env'
+                    env.INSTANCE_IP = props.INSTANCE_IP
+                    env.INSTANCE_ID = props.INSTANCE_ID
                     
                     echo "✓ Captured Instance IP: ${env.INSTANCE_IP}"
                     echo "✓ Captured Instance ID: ${env.INSTANCE_ID}"
