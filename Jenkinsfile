@@ -104,31 +104,32 @@ pipeline {
                     script {
                         echo "Applying Terraform plan for ${env.BRANCH_NAME} environment"
                         
-                        // Apply and capture outputs in one go
-                        def tfOutput = sh(
-                            returnStdout: true,
-                            script: '''#!/bin/bash
-                                terraform apply -auto-approve -var-file=dev.tfvars
-                                echo "INSTANCE_IP=$(terraform output -raw ec2_public_ip)"
-                                echo "INSTANCE_ID=$(terraform output -raw ec2_instance_id)"
-                            '''
-                        ).trim()
+                        // Apply terraform
+                        sh 'terraform apply -auto-approve -var-file=dev.tfvars'
                         
                         echo "Infrastructure deployed successfully!"
-                        echo "Terraform output:\n${tfOutput}"
                         
-                        // Extract values from output
-                        def ipLine = tfOutput.split('\n').find { it.startsWith('INSTANCE_IP=') }
-                        def idLine = tfOutput.split('\n').find { it.startsWith('INSTANCE_ID=') }
+                        // Capture outputs directly
+                        env.INSTANCE_IP = sh(
+                            script: 'terraform output -raw ec2_public_ip',
+                            returnStdout: true
+                        ).trim()
                         
-                        if (ipLine && idLine) {
-                            env.INSTANCE_IP = ipLine.replace('INSTANCE_IP=', '')
-                            env.INSTANCE_ID = idLine.replace('INSTANCE_ID=', '')
-                            echo "Instance Public IP: ${env.INSTANCE_IP}"
-                            echo "Instance ID: ${env.INSTANCE_ID}"
-                        } else {
-                            error "Failed to capture Terraform outputs from command output"
+                        env.INSTANCE_ID = sh(
+                            script: 'terraform output -raw ec2_instance_id',
+                            returnStdout: true
+                        ).trim()
+                        
+                        // Validate captured values
+                        if (!env.INSTANCE_IP || env.INSTANCE_IP == 'null' || env.INSTANCE_IP == '') {
+                            error "Failed to capture Instance IP from Terraform outputs"
                         }
+                        if (!env.INSTANCE_ID || env.INSTANCE_ID == 'null' || env.INSTANCE_ID == '') {
+                            error "Failed to capture Instance ID from Terraform outputs"
+                        }
+                        
+                        echo "Instance Public IP: ${env.INSTANCE_IP}"
+                        echo "Instance ID: ${env.INSTANCE_ID}"
                     }
                 }
             }
