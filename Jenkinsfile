@@ -28,10 +28,8 @@ pipeline {
             steps {
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                     sh '''
-                        export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                        
                         echo "Initializing Terraform..."
-                        terraform init
+                        /opt/homebrew/bin//opt/homebrew/bin/terraform init
                         
                         echo "==== Dev environment configuration ===="
                         cat dev.tfvars
@@ -49,10 +47,10 @@ pipeline {
                 script {
                     withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                         sh '''
-                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            
                             
                             echo "Generating Terraform plan..."
-                            terraform plan -var-file=dev.tfvars -out=dev.tfplan
+                            /opt/homebrew/bin/terraform plan -var-file=dev.tfvars -out=dev.tfplan
                         '''
                     }
                 }
@@ -76,10 +74,10 @@ pipeline {
                 script {
                     withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                         sh '''
-                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            
                             
                             echo "Applying Terraform plan..."
-                            terraform apply -auto-approve dev.tfplan
+                            /opt/homebrew/bin/terraform apply -auto-approve dev.tfplan
                             echo "✓ Infrastructure deployed!"
                         '''
                     }
@@ -95,16 +93,16 @@ pipeline {
                 script {
                     env.INSTANCE_ID = sh(
                         script: '''
-                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                            terraform output -raw ec2_instance_id
+                            
+                            /opt/homebrew/bin/terraform output -raw ec2_instance_id
                         ''',
                         returnStdout: true
                     ).trim()
 
                     env.INSTANCE_IP = sh(
                         script: '''
-                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                            terraform output -raw ec2_public_ip
+                            
+                            /opt/homebrew/bin/terraform output -raw ec2_public_ip
                         ''',
                         returnStdout: true
                     ).trim()
@@ -125,7 +123,7 @@ pipeline {
             }
             steps {
                 sh '''
-                    export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                    
                     
                     cat > dynamic_inventory.ini <<EOF
 [splunk_servers]
@@ -147,10 +145,10 @@ EOF
                 script {
                     withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                         sh '''
-                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            
                             
                             echo "Waiting for instance to be ready..."
-                            aws ec2 wait instance-status-ok --instance-ids ${INSTANCE_ID} --region ${AWS_REGION}
+                            /opt/homebrew/bin/aws ec2 wait instance-status-ok --instance-ids ${INSTANCE_ID} --region ${AWS_REGION}
                             echo "✓ Instance is ready!"
                         '''
                     }
@@ -172,10 +170,10 @@ EOF
                         )
                     ]) {
                         sh '''
-                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            
                             
                             chmod 600 ${SSH_KEY}
-                            ansible-playbook \
+                            /opt/homebrew/bin/ansible-playbook \
                                 -i dynamic_inventory.ini \
                                 --private-key ${SSH_KEY} \
                                 playbooks/splunk.yml
@@ -199,10 +197,10 @@ EOF
                         )
                     ]) {
                         sh '''
-                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                            
                             
                             chmod 600 ${SSH_KEY}
-                            ansible-playbook \
+                            /opt/homebrew/bin/ansible-playbook \
                                 -i dynamic_inventory.ini \
                                 --private-key ${SSH_KEY} \
                                 playbooks/test-splunk.yml
@@ -218,12 +216,12 @@ EOF
             }
             steps {
                 sh '''
-                    export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                    
                     
                     echo "=========================================="
                     echo "       DEPLOYMENT SUCCESSFUL!"
                     echo "=========================================="
-                    terraform output
+                    /opt/homebrew/bin/terraform output
                     echo ""
                     echo "Splunk Web: http://${INSTANCE_IP}:8000"
                     echo "  Username: admin"
@@ -252,9 +250,9 @@ EOF
                 script {
                     withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                         sh '''
-                            export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                             
-                            terraform destroy -auto-approve -var-file=dev.tfvars
+                            
+                            /opt/homebrew/bin/terraform destroy -auto-approve -var-file=dev.tfvars
                             echo "✓ Infrastructure destroyed"
                         '''
                     }
@@ -266,7 +264,7 @@ EOF
     post {
         always {
             sh '''
-                export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                
                 rm -f dynamic_inventory.ini dev.tfplan || true
             '''
         }
@@ -276,10 +274,10 @@ EOF
                 echo "Pipeline failed - destroying infrastructure..."
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                     sh '''
-                        export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                         
-                        terraform init -reconfigure || true
-                        terraform destroy -auto-approve -var-file=dev.tfvars || true
+                        
+                        /opt/homebrew/bin/terraform init -reconfigure || true
+                        /opt/homebrew/bin/terraform destroy -auto-approve -var-file=dev.tfvars || true
                     '''
                 }
             }
@@ -290,10 +288,10 @@ EOF
                 echo "Pipeline aborted - destroying infrastructure..."
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                     sh '''
-                        export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
                         
-                        terraform init -reconfigure || true
-                        terraform destroy -auto-approve -var-file=dev.tfvars || true
+                        
+                        /opt/homebrew/bin/terraform init -reconfigure || true
+                        /opt/homebrew/bin/terraform destroy -auto-approve -var-file=dev.tfvars || true
                     '''
                 }
             }
