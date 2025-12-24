@@ -8,9 +8,6 @@ pipeline {
         AWS_CREDENTIAL   = 'Devops-project-id'
         SSH_CRED_ID      = 'ssh-private-key'
 
-        // Correct way to extend PATH in Jenkins (fixes JENKINS-41339)
-        PATH+EXTRA = "/opt/homebrew/bin:/opt/homebrew/sbin"
-
         INSTANCE_IP = ''
         INSTANCE_ID = ''
         DESTROY_APPROVED = 'false'
@@ -28,15 +25,10 @@ pipeline {
         stage('Terraform Initialization') {
             steps {
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                    sh 'terraform init'
-
-                    sh """
-                        if [ ! -f ${BRANCH_NAME}.tfvars ]; then
-                            echo "Missing ${BRANCH_NAME}.tfvars"
-                            exit 1
-                        fi
-                        cat ${BRANCH_NAME}.tfvars
-                    """
+                    withEnv(["PATH=/opt/homebrew/bin:/opt/homebrew/sbin:${env.PATH}"]) {
+                        sh 'terraform init'
+                        sh 'cat ${BRANCH_NAME}.tfvars'
+                    }
                 }
             }
         }
@@ -44,11 +36,13 @@ pipeline {
         stage('Terraform Plan') {
             steps {
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                    sh """
-                        terraform plan \
-                        -var-file=${BRANCH_NAME}.tfvars \
-                        -out=${BRANCH_NAME}.tfplan
-                    """
+                    withEnv(["PATH=/opt/homebrew/bin:/opt/homebrew/sbin:${env.PATH}"]) {
+                        sh """
+                            terraform plan \
+                            -var-file=${BRANCH_NAME}.tfvars \
+                            -out=${BRANCH_NAME}.tfplan
+                        """
+                    }
                 }
             }
         }
@@ -64,7 +58,9 @@ pipeline {
             when { branch 'dev' }
             steps {
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                    sh "terraform apply -auto-approve ${BRANCH_NAME}.tfplan"
+                    withEnv(["PATH=/opt/homebrew/bin:/opt/homebrew/sbin:${env.PATH}"]) {
+                        sh "terraform apply -auto-approve ${BRANCH_NAME}.tfplan"
+                    }
                 }
             }
         }
@@ -73,21 +69,23 @@ pipeline {
             when { branch 'dev' }
             steps {
                 script {
-                    env.INSTANCE_IP = sh(
-                        script: 'terraform output -raw ec2_public_ip',
-                        returnStdout: true
-                    ).trim()
+                    withEnv(["PATH=/opt/homebrew/bin:/opt/homebrew/sbin:${env.PATH}"]) {
+                        env.INSTANCE_IP = sh(
+                            script: 'terraform output -raw ec2_public_ip',
+                            returnStdout: true
+                        ).trim()
 
-                    env.INSTANCE_ID = sh(
-                        script: 'terraform output -raw ec2_instance_id',
-                        returnStdout: true
-                    ).trim()
+                        env.INSTANCE_ID = sh(
+                            script: 'terraform output -raw ec2_instance_id',
+                            returnStdout: true
+                        ).trim()
+                    }
 
                     echo "Captured IP : ${env.INSTANCE_IP}"
                     echo "Captured ID : ${env.INSTANCE_ID}"
 
                     if (!env.INSTANCE_IP || !env.INSTANCE_ID) {
-                        error "Failed to capture Terraform outputs"
+                        error "Terraform outputs not captured"
                     }
                 }
             }
@@ -108,11 +106,13 @@ pipeline {
             when { branch 'dev' }
             steps {
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                    sh """
-                        aws ec2 wait instance-status-ok \
-                        --instance-ids ${INSTANCE_ID} \
-                        --region us-east-1
-                    """
+                    withEnv(["PATH=/opt/homebrew/bin:/opt/homebrew/sbin:${env.PATH}"]) {
+                        sh """
+                            aws ec2 wait instance-status-ok \
+                            --instance-ids ${INSTANCE_ID} \
+                            --region us-east-1
+                        """
+                    }
                 }
             }
         }
@@ -123,8 +123,7 @@ pipeline {
                 ansiblePlaybook(
                     playbook: 'playbooks/splunk.yml',
                     inventory: 'dynamic_inventory.ini',
-                    credentialsId: env.SSH_CRED_ID,
-                    colorized: true
+                    credentialsId: env.SSH_CRED_ID
                 )
             }
         }
@@ -135,17 +134,8 @@ pipeline {
                 ansiblePlaybook(
                     playbook: 'playbooks/test-splunk.yml',
                     inventory: 'dynamic_inventory.ini',
-                    credentialsId: env.SSH_CRED_ID,
-                    colorized: true
+                    credentialsId: env.SSH_CRED_ID
                 )
-            }
-        }
-
-        stage('Show Outputs') {
-            when { branch 'dev' }
-            steps {
-                sh 'terraform output'
-                echo "Splunk URL: http://${INSTANCE_IP}:8000"
             }
         }
 
@@ -158,8 +148,7 @@ pipeline {
                         parameters: [
                             choice(
                                 name: 'ACTION',
-                                choices: ['Skip', 'Destroy'],
-                                description: 'Destroy AWS resources'
+                                choices: ['Skip', 'Destroy']
                             )
                         ]
                     )
@@ -179,11 +168,13 @@ pipeline {
             }
             steps {
                 withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                    sh """
-                        terraform destroy \
-                        -auto-approve \
-                        -var-file=${BRANCH_NAME}.tfvars
-                    """
+                    withEnv(["PATH=/opt/homebrew/bin:/opt/homebrew/sbin:${env.PATH}"]) {
+                        sh """
+                            terraform destroy \
+                            -auto-approve \
+                            -var-file=${BRANCH_NAME}.tfvars
+                        """
+                    }
                 }
             }
         }
@@ -198,34 +189,17 @@ pipeline {
             script {
                 if (env.BRANCH_NAME == 'dev') {
                     withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                        sh """
-                            terraform init -reconfigure || true
-                            terraform destroy \
-                            -auto-approve \
-                            -var-file=${BRANCH_NAME}.tfvars || true
-                        """
+                        withEnv(["PATH=/opt/homebrew/bin:/opt/homebrew/sbin:${env.PATH}"]) {
+                            sh """
+                                terraform init -reconfigure || true
+                                terraform destroy \
+                                -auto-approve \
+                                -var-file=${BRANCH_NAME}.tfvars || true
+                            """
+                        }
                     }
                 }
             }
-        }
-
-        aborted {
-            script {
-                if (env.BRANCH_NAME == 'dev') {
-                    withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
-                        sh """
-                            terraform init -reconfigure || true
-                            terraform destroy \
-                            -auto-approve \
-                            -var-file=${BRANCH_NAME}.tfvars || true
-                        """
-                    }
-                }
-            }
-        }
-
-        success {
-            echo "Pipeline completed successfully"
         }
     }
 }
