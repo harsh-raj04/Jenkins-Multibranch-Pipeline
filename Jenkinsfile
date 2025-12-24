@@ -172,13 +172,14 @@ EOF
                 branch 'dev'
             }
             steps {
-                sshagent(credentials: [env.SSH_CRED_ID]) {
+                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CRED_ID, keyFileVariable: 'SSH_KEY')]) {
                     script {
                         echo "Installing Splunk using Ansible..."
                         sh """
                             export ANSIBLE_HOST_KEY_CHECKING=False
                             ansible-playbook playbooks/splunk.yml \
                                 -i dynamic_inventory.ini \
+                                --private-key=${SSH_KEY} \
                                 --ssh-common-args='-o StrictHostKeyChecking=no'
                         """
                         echo "Splunk installation completed!"
@@ -192,13 +193,14 @@ EOF
                 branch 'dev'
             }
             steps {
-                sshagent(credentials: [env.SSH_CRED_ID]) {
+                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CRED_ID, keyFileVariable: 'SSH_KEY')]) {
                     script {
                         echo "Testing Splunk installation..."
                         sh """
                             export ANSIBLE_HOST_KEY_CHECKING=False
                             ansible-playbook playbooks/test-splunk.yml \
                                 -i dynamic_inventory.ini \
+                                --private-key=${SSH_KEY} \
                                 --ssh-common-args='-o StrictHostKeyChecking=no'
                         """
                         echo "✅ Splunk service is active and reachable!"
