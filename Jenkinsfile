@@ -181,7 +181,8 @@ EOF
                         inventory: 'dynamic_inventory.ini',
                         credentialsId: env.SSH_CRED_ID,
                         colorized: true,
-                        disableHostKeyChecking: true
+                        disableHostKeyChecking: true,
+                        installation: 'ansible'
                     )
                     
                     echo "Splunk installation completed!"
@@ -203,7 +204,8 @@ EOF
                         inventory: 'dynamic_inventory.ini',
                         credentialsId: env.SSH_CRED_ID,
                         colorized: true,
-                        disableHostKeyChecking: true
+                        disableHostKeyChecking: true,
+                        installation: 'ansible'
                     )
                     
                     echo "✅ Splunk service is active and reachable!"
