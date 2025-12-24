@@ -104,34 +104,31 @@ pipeline {
                     script {
                         echo "Applying Terraform plan for ${env.BRANCH_NAME} environment"
                         
-                        // 1. Run the apply separately first
+                        // Run terraform apply
                         sh "terraform apply -auto-approve -var-file=${env.BRANCH_NAME}.tfvars"
                         
                         echo "Infrastructure deployed successfully!"
                         
-                        // 2. Capture outputs individually using separate variable assignment
-                        def instanceIp = sh(
-                            script: 'terraform output -raw ec2_public_ip',
-                            returnStdout: true
-                        ).trim()
+                        // Write outputs to files to avoid CPS serialization issues
+                        sh '''
+                            terraform output -raw ec2_public_ip > instance_ip.txt
+                            terraform output -raw ec2_instance_id > instance_id.txt
+                        '''
                         
-                        def instanceId = sh(
-                            script: 'terraform output -raw ec2_instance_id',
-                            returnStdout: true
-                        ).trim()
+                        // Read from files into env variables
+                        env.INSTANCE_IP = readFile('instance_ip.txt').trim()
+                        env.INSTANCE_ID = readFile('instance_id.txt').trim()
                         
-                        // 3. Assign to env variables
-                        env.INSTANCE_IP = instanceIp
-                        env.INSTANCE_ID = instanceId
-                        
-                        // 4. Verify immediately
-                        if (!env.INSTANCE_IP || env.INSTANCE_IP == 'null' || env.INSTANCE_IP == '' || 
-                            !env.INSTANCE_ID || env.INSTANCE_ID == 'null' || env.INSTANCE_ID == '') {
-                            error "Capture failed! IP: ${env.INSTANCE_IP}, ID: ${env.INSTANCE_ID}. Check terraform outputs."
+                        // Verify
+                        if (!env.INSTANCE_IP || env.INSTANCE_IP == 'null' || env.INSTANCE_IP == '') {
+                            error "Failed to capture IP: ${env.INSTANCE_IP}"
+                        }
+                        if (!env.INSTANCE_ID || env.INSTANCE_ID == 'null' || env.INSTANCE_ID == '') {
+                            error "Failed to capture ID: ${env.INSTANCE_ID}"
                         }
                         
-                        echo "✓ Instance Public IP: ${env.INSTANCE_IP}"
-                        echo "✓ Instance ID: ${env.INSTANCE_ID}"
+                        echo "✓ Captured Instance IP: ${env.INSTANCE_IP}"
+                        echo "✓ Captured Instance ID: ${env.INSTANCE_ID}"
                     }
                 }
             }
