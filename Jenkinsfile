@@ -112,15 +112,15 @@ pipeline {
                         // Capture Terraform outputs into environment variables
                         echo "Capturing Terraform outputs..."
                         
-                        def instanceIp = sh(
-                            script: '/bin/bash -c "terraform output -raw ec2_public_ip 2>/dev/null || echo \'ERROR\'"',
-                            returnStdout: true
-                        ).trim()
+                        // Write outputs to temporary files
+                        sh '''#!/bin/bash
+                            terraform output -raw ec2_public_ip > /tmp/instance_ip.txt 2>/dev/null || echo "ERROR" > /tmp/instance_ip.txt
+                            terraform output -raw ec2_instance_id > /tmp/instance_id.txt 2>/dev/null || echo "ERROR" > /tmp/instance_id.txt
+                        '''
                         
-                        def instanceId = sh(
-                            script: '/bin/bash -c "terraform output -raw ec2_instance_id 2>/dev/null || echo \'ERROR\'"',
-                            returnStdout: true
-                        ).trim()
+                        // Read from files into variables
+                        def instanceIp = readFile('/tmp/instance_ip.txt').trim()
+                        def instanceId = readFile('/tmp/instance_id.txt').trim()
                         
                         if (instanceIp == 'ERROR' || instanceId == 'ERROR') {
                             error "Failed to capture Terraform outputs"
@@ -128,6 +128,9 @@ pipeline {
                         
                         env.INSTANCE_IP = instanceIp
                         env.INSTANCE_ID = instanceId
+                        
+                        // Clean up temp files
+                        sh 'rm -f /tmp/instance_ip.txt /tmp/instance_id.txt'
                         
                         echo "Instance Public IP: ${env.INSTANCE_IP}"
                         echo "Instance ID: ${env.INSTANCE_ID}"
@@ -301,6 +304,8 @@ EOF
                         withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                             sh """#!/bin/bash
                                 cd ${WORKSPACE}
+                                # Re-initialize if needed
+                                terraform init -reconfigure || true
                                 terraform destroy \
                                     -auto-approve \
                                     -var-file=${env.BRANCH_NAME}.tfvars || true
@@ -323,6 +328,8 @@ EOF
                         withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                             sh """#!/bin/bash
                                 cd ${WORKSPACE}
+                                # Re-initialize if needed
+                                terraform init -reconfigure || true
                                 terraform destroy \
                                     -auto-approve \
                                     -var-file=${env.BRANCH_NAME}.tfvars || true
@@ -339,24 +346,26 @@ EOF
             script {
                 // Delete dynamic inventory file
                 try {
-                    sh 'rm -f dynamic_inventory.ini'
-                    echo "Cleaned up dynamic_inventory.ini"
+                    sh 'rm -f dynamic_inventory.ini /tmp/instance_ip.txt /tmp/instance_id.txt'
+                    echo "Cleaned up temporary files"
                 } catch (Exception e) {
-                    echo "Inventory cleanup skipped: ${e.message}"
+                    echo "Temp file cleanup skipped: ${e.message}"
                 }
                 
-                // Clean workspace
-                try {
-                    cleanWs(
-                        deleteDirs: true,
-                        patterns: [
-                            [pattern: '*.tfplan', type: 'INCLUDE'],
-                            [pattern: '.terraform/', type: 'INCLUDE'],
-                            [pattern: 'dynamic_inventory.ini', type: 'INCLUDE']
-                        ]
-                    )
-                } catch (Exception e) {
-                    echo "Workspace cleanup skipped: ${e.message}"
+                // Clean workspace only on success
+                if (currentBuild.result == 'SUCCESS' || currentBuild.result == null) {
+                    try {
+                        cleanWs(
+                            deleteDirs: true,
+                            patterns: [
+                                [pattern: '*.tfplan', type: 'INCLUDE'],
+                                [pattern: '.terraform/', type: 'INCLUDE']
+                            ]
+                        )
+                        echo "Workspace cleaned"
+                    } catch (Exception e) {
+                        echo "Workspace cleanup skipped: ${e.message}"
+                    }
                 }
             }
         }
