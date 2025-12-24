@@ -8,6 +8,8 @@ pipeline {
         // AWS credentials will be injected securely using your existing credential
         AWS_CREDENTIAL = 'Devops-project-id'
         SSH_CRED_ID = 'ssh-private-key'
+        // Fix PATH for macOS
+        PATH = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:$PATH"
         // Dynamic variables for BYOD-3
         INSTANCE_IP = ''
         INSTANCE_ID = ''
