@@ -117,19 +117,29 @@ pipeline {
             }
             steps {
                 script {
-                    echo "Capturing Terraform outputs using environment properties file..."
+                    echo "Capturing Terraform outputs..."
                     
-                    // Write to a properties file that Jenkins can load
-                    sh '''
-                        echo "INSTANCE_IP=$(terraform output -raw ec2_public_ip)" > terraform.env
-                        echo "INSTANCE_ID=$(terraform output -raw ec2_instance_id)" >> terraform.env
-                        cat terraform.env
-                    '''
+                    // Write to simple text files
+                    sh 'terraform output -raw ec2_public_ip > ip.txt'
+                    sh 'terraform output -raw ec2_instance_id > id.txt'
                     
-                    // Load the properties file
-                    def props = readProperties file: 'terraform.env'
-                    env.INSTANCE_IP = props.INSTANCE_IP
-                    env.INSTANCE_ID = props.INSTANCE_ID
+                    // Read files directly (readFile is a Jenkins built-in)
+                    env.INSTANCE_IP = readFile('ip.txt').trim()
+                    env.INSTANCE_ID = readFile('id.txt').trim()
+                    
+                    echo "✓ Captured Instance IP: ${env.INSTANCE_IP}"
+                    echo "✓ Captured Instance ID: ${env.INSTANCE_ID}"
+                    
+                    // Verify
+                    if (!env.INSTANCE_IP || env.INSTANCE_IP == 'null' || env.INSTANCE_IP == '') {
+                        error "Failed to capture Instance IP"
+                    }
+                    if (!env.INSTANCE_ID || env.INSTANCE_ID == 'null' || env.INSTANCE_ID == '') {
+                        error "Failed to capture Instance ID"
+                    }
+                }
+            }
+        }
                     
                     echo "✓ Captured Instance IP: ${env.INSTANCE_IP}"
                     echo "✓ Captured Instance ID: ${env.INSTANCE_ID}"
