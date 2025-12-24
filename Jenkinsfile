@@ -4,8 +4,12 @@ pipeline {
     environment {
         TF_IN_AUTOMATION = 'true'
         TF_INPUT = 'false'
+        TF_CLI_ARGS = '-no-color'
         ANSIBLE_HOST_KEY_CHECKING = 'False'
         AWS_REGION = 'us-east-1'
+        
+        AWS_CREDENTIAL = 'Devops-project-id'
+        SSH_CRED_ID = 'ssh-private-key'
     }
 
     stages {
@@ -23,14 +27,9 @@ pipeline {
             }
             steps {
                 script {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
+                    withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                         sh '''#!/bin/bash
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                            export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
-                            export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
                             
                             echo "Initializing Terraform..."
                             terraform init
@@ -50,14 +49,9 @@ pipeline {
             }
             steps {
                 script {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
+                    withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                         sh '''#!/bin/bash
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                            export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
-                            export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
                             
                             echo "Generating Terraform plan..."
                             terraform plan -var-file=dev.tfvars -out=dev.tfplan
@@ -82,14 +76,9 @@ pipeline {
             }
             steps {
                 script {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
+                    withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                         sh '''#!/bin/bash
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                            export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
-                            export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
                             
                             echo "Applying Terraform plan..."
                             terraform apply -auto-approve dev.tfplan
@@ -158,14 +147,9 @@ EOF
             }
             steps {
                 script {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
+                    withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                         sh '''#!/bin/bash
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                            export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
-                            export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
                             
                             echo "Waiting for instance to be ready..."
                             aws ec2 wait instance-status-ok --instance-ids ${INSTANCE_ID} --region ${AWS_REGION}
@@ -211,7 +195,7 @@ EOF
                 script {
                     withCredentials([
                         sshUserPrivateKey(
-                            credentialsId: 'ssh-private-key',
+                            credentialsId: env.SSH_CRED_ID,
                             keyFileVariable: 'SSH_KEY',
                             usernameVariable: 'SSH_USER'
                         )
@@ -268,14 +252,9 @@ EOF
             }
             steps {
                 script {
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
+                    withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                         sh '''#!/bin/bash
                             export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                            export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
-                            export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
                             
                             terraform destroy -auto-approve -var-file=dev.tfvars
                             echo "✓ Infrastructure destroyed"
@@ -297,14 +276,9 @@ EOF
         failure {
             script {
                 echo "Pipeline failed - destroying infrastructure..."
-                withCredentials([
-                    string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
+                withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                     sh '''#!/bin/bash
                         export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                        export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
-                        export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
                         
                         terraform init -reconfigure || true
                         terraform destroy -auto-approve -var-file=dev.tfvars || true
@@ -316,14 +290,9 @@ EOF
         aborted {
             script {
                 echo "Pipeline aborted - destroying infrastructure..."
-                withCredentials([
-                    string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
-                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
+                withCredentials([aws(credentialsId: env.AWS_CREDENTIAL)]) {
                     sh '''#!/bin/bash
                         export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-                        export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
-                        export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
                         
                         terraform init -reconfigure || true
                         terraform destroy -auto-approve -var-file=dev.tfvars || true
